@@ -1,15 +1,15 @@
 # main.py
 
+import logging
+# Configure logging for this module
+logging.basicConfig(filename='debug-log.txt', level=logging.DEBUG, format='%(asctime)s %(levelname)s: %(message)s')
+###import other modules/functions
 import os
 import json
-import logging
 import time
 from token_utils import obtain_api_token
 from post_utils import create_objects
 from parse_panosxml2 import parse_url_category_entries, parse_url_profiles_entries, parse_vulnerability_profiles_entries, parse_spyware_profiles_entries, parse_antivirus_profiles_entries, parse_profile_group_entries, parse_tag_entries, parse_address_entries, parse_address_group_entries, parse_service_entries, parse_service_group_entries, parse_edl_entries, parse_application_filter_entries, parse_application_group_entries, parse_security_pre_rules_entries, parse_security_post_rules_entries, parse_nat_pre_rules_entries, parse_nat_post_rules_entries
-
-# Configure logging for this module
-logging.basicConfig(filename='debug-log.txt', level=logging.DEBUG, format='%(asctime)s %(levelname)s: %(message)s')
 
 def mark_start_of_run_in_log(log_file):
     # Check the current size of the log file

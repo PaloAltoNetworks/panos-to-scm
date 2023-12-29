@@ -206,7 +206,7 @@ In MacOS/Linux "export CLIENT_SECRET=your-text-string" In Windows CMD "setx CLIE
 
     # process_entries(scope, nat_rule_pre_entries, create_objects, "nat rules", client_id, client_secret, tsg_id, object_type='nat-rules?', max_workers=1, extra_query_params="pre") ###### Setting max_workers=1 as nat rule sequencing is important (i.e. the rules need to be in proper ordering)
 
-    # if nat_rule_pre_entries:
+    # if nat_rule_post_entries:
     #     process_entries(scope, nat_rule_post_entries, create_objects, "nat rules", client_id, client_secret, tsg_id, 'nat-rules?', max_workers=1, extra_query_params="post") ###### Setting max_workers=1 as nat rule sequencing is important (i.e. the rules need to be in proper ordering)
 
 if __name__ == "__main__":

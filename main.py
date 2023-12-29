@@ -201,7 +201,7 @@ In MacOS/Linux "export CLIENT_SECRET=your-text-string" In Windows CMD "setx CLIE
         process_entries(scope, security_rule_post_entries, create_objects, "security rules", client_id, client_secret, tsg_id, token_file, object_type='security-rules?', max_workers=1, extra_query_params="post") ###### Setting max_workers=1 as security rule sequencing is important (i.e. the rules need to be in proper ordering)
 
     """
-    Uncomment the following NAT rule lines when ever added to the API
+    Uncomment the following NAT rule lines when ever feature added to the SCM API
     """  
 
     # process_entries(scope, nat_rule_pre_entries, create_objects, "nat rules", client_id, client_secret, tsg_id, object_type='nat-rules?', max_workers=1, extra_query_params="pre") ###### Setting max_workers=1 as nat rule sequencing is important (i.e. the rules need to be in proper ordering)

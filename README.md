@@ -1,7 +1,8 @@
 # panos-to-scm
-Migrate Panorama or Local PANOS config to Strata Cloud Manager
+Migrate Panorama or Local PANOS config(FROM XML file) to Strata Cloud Manager
 
 
+## Update the following
 On main.py update client_id, tsg_id with your Service Account information.
 
 Currently using environment variables to store your secret
@@ -10,7 +11,7 @@ Currently using environment variables to store your secret
 
 Additionally, update xml_file_path with your XML file export of Panorama or Local Firewall running config
 
-Currently Support Features:
+## Currently Support Features:
 
 -External Dynamic List - IP and URL.. Missing Certificate Profile for now<br />
 -Custom URL Categories<br />

@@ -7,9 +7,9 @@ logging.basicConfig(filename='debug-log.txt', level=logging.DEBUG, format='%(asc
 import os
 import json
 import time
+import parse_panosxml2
 from token_utils import obtain_api_token
 from post_utils import create_objects
-from parse_panosxml2 import parse_url_category_entries, parse_url_profiles_entries, parse_vulnerability_profiles_entries, parse_spyware_profiles_entries, parse_antivirus_profiles_entries, parse_profile_group_entries, parse_tag_entries, parse_address_entries, parse_address_group_entries, parse_service_entries, parse_service_group_entries, parse_edl_entries, parse_application_filter_entries, parse_application_group_entries, parse_security_pre_rules_entries, parse_security_post_rules_entries, parse_nat_pre_rules_entries, parse_nat_post_rules_entries
 
 def mark_start_of_run_in_log(log_file):
     # Check the current size of the log file
@@ -121,47 +121,46 @@ In MacOS/Linux "export CLIENT_SECRET=your-text-string" In Windows CMD "setx CLIE
     I suggest uncommenting the print below one at a time to verify data is actually parsed
     do this before uncommenting and calling the process_entries further down
     """    
-    url_categories = parse_url_category_entries(xml_file_path, config_type, device_group_name)
+    url_categories = parse_panosxml2.parse_url_category_entries(xml_file_path, config_type, device_group_name)
     
-    url_profiles = parse_url_profiles_entries(xml_file_path, config_type, device_group_name)
+    url_profiles = parse_panosxml2.parse_url_profiles_entries(xml_file_path, config_type, device_group_name)
     
-    vulnerability_profiles = parse_vulnerability_profiles_entries(xml_file_path, config_type, device_group_name)
+    vulnerability_profiles = parse_panosxml2.parse_vulnerability_profiles_entries(xml_file_path, config_type, device_group_name)
     
-    spyware_profiles = parse_spyware_profiles_entries(xml_file_path, config_type, device_group_name)
+    spyware_profiles = parse_panosxml2.parse_spyware_profiles_entries(xml_file_path, config_type, device_group_name)
     
-    virus_profiles = parse_antivirus_profiles_entries(xml_file_path, config_type, device_group_name)
+    virus_profiles = parse_panosxml2.parse_antivirus_profiles_entries(xml_file_path, config_type, device_group_name)
     
-    profile_group_entries = parse_profile_group_entries(xml_file_path, config_type, device_group_name)
+    profile_group_entries = parse_panosxml2.parse_profile_group_entries(xml_file_path, config_type, device_group_name)
     
-    tag_entries = parse_tag_entries(xml_file_path, config_type, device_group_name)
+    tag_entries = parse_panosxml2.parse_tag_entries(xml_file_path, config_type, device_group_name)
     
-    address_entries = parse_address_entries(xml_file_path, config_type, device_group_name)
+    address_entries = parse_panosxml2.parse_address_entries(xml_file_path, config_type, device_group_name)
     
-    address_group_entries = parse_address_group_entries(xml_file_path, config_type, device_group_name)
+    address_group_entries = parse_panosxml2.parse_address_group_entries(xml_file_path, config_type, device_group_name)
     
-    service_entries = parse_service_entries(xml_file_path, config_type, device_group_name)
+    service_entries = parse_panosxml2.parse_service_entries(xml_file_path, config_type, device_group_name)
     
-    service_group_entries = parse_service_group_entries(xml_file_path, config_type, device_group_name)
+    service_group_entries = parse_panosxml2.parse_service_group_entries(xml_file_path, config_type, device_group_name)
     
-    edl_data_entries = parse_edl_entries(xml_file_path, config_type, device_group_name)
+    edl_data_entries = parse_panosxml2.parse_edl_entries(xml_file_path, config_type, device_group_name)
     
-    app_filter_entries = parse_application_filter_entries(xml_file_path, config_type, device_group_name)
+    app_filter_entries = parse_panosxml2.parse_application_filter_entries(xml_file_path, config_type, device_group_name)
     
-    application_group_entries = parse_application_group_entries(xml_file_path, config_type, device_group_name)
+    application_group_entries = parse_panosxml2.parse_application_group_entries(xml_file_path, config_type, device_group_name)
     
-    security_rule_pre_entries = parse_security_pre_rules_entries(xml_file_path, config_type, device_group_name)
+    security_rule_pre_entries = parse_panosxml2.parse_security_pre_rules_entries(xml_file_path, config_type, device_group_name)
     
     security_rule_post_entries = []
     if config_type == 'panorama/device-group':
-        security_rule_post_entries = parse_security_post_rules_entries(xml_file_path, config_type, device_group_name)
+        security_rule_post_entries = parse_panosxml2.parse_security_post_rules_entries(xml_file_path, config_type, device_group_name)
     
-    nat_rule_pre_entries = parse_nat_pre_rules_entries(xml_file_path, config_type, device_group_name)
+    nat_rule_pre_entries = parse_panosxml2.parse_nat_pre_rules_entries(xml_file_path, config_type, device_group_name)
 
     nat_rule_post_entries = []
     if config_type == 'panorama/device-group':
-        nat_rule_post_entries = parse_nat_post_rules_entries(xml_file_path, config_type, device_group_name)
+        nat_rule_post_entries = parse_panosxml2.parse_nat_post_rules_entries(xml_file_path, config_type, device_group_name)
     
-
     ### Process each type of entry in sequence
 
     """

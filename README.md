@@ -12,19 +12,19 @@ Additionally, update xml_file_path with your XML file export of Panorama or Loca
 
 Currently Support Features:
 
--External Dynamic List - IP and URL.. Missing Certificate Profile for now
--Custom URL Categories
--URL Filter Profiles
--Vulnerability Profiles
--Anti-Spyware Profiles - SCM
--Anti-Virus Profiles - SCM combines Virus/WildFire together.. As of now, it's importing Anti-Virus (but decoder's do not show currently) - Work in progress
--Profile Groups
--Tags
--Address Objects
--Address Groups
--Service Objects
--Service Groups
--Application Filters
--Application Groups
--Security Rules
--NAT Rules - API is not open yet, not tested.. Will test when API is open
+External Dynamic List - IP and URL.. Missing Certificate Profile for now
+Custom URL Categories
+URL Filter Profiles
+Vulnerability Profiles
+Anti-Spyware Profiles - SCM
+Anti-Virus Profiles - SCM combines Virus/WildFire together.. As of now, it's importing Anti-Virus (but decoder's do not show currently) - Work in progress
+Profile Groups
+Tags
+Address Objects
+Address Groups
+Service Objects
+Service Groups
+Application Filters
+Application Groups
+Security Rules
+NAT Rules - API is not open yet, not tested.. Will test when API is open

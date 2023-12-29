@@ -1,4 +1,4 @@
-# post_utils6.py
+# post_utils.py
 
 import requests
 import os
@@ -107,53 +107,3 @@ def token_is_expired(access_token, token_file):
             return current_time > (token_data['expires_at'] - 180)  # 180 seconds buffer
     else:
         return True  # Token file does not exist, assume token is expired
-
-
-#### Functions to create different types of objects and policies
-def create_tag_objects(scope, start_index, tags_data, client_id, client_secret, tsg_id, token_file, max_workers, extra_query_params=''):
-    return create_objects(scope, start_index, 'tags?', tags_data, client_id, client_secret, tsg_id, token_file, max_workers=max_workers, extra_query_params=extra_query_params)
-
-def create_url_categories(scope, start_index, url_cat_data, client_id, client_secret, tsg_id, token_file, max_workers, extra_query_params=''):
-    return create_objects(scope, start_index, 'url-categories?', url_cat_data, client_id, client_secret, tsg_id, token_file, max_workers=max_workers, extra_query_params=extra_query_params)
-
-def create_url_profiles(scope, start_index, url_profiles_data, client_id, client_secret, tsg_id, token_file, max_workers, extra_query_params=''):
-    return create_objects(scope, start_index, 'url-access-profiles?', url_profiles_data, client_id, client_secret, tsg_id, token_file, max_workers=max_workers, extra_query_params=extra_query_params)
-
-def create_vulnerability_profiles(scope, start_index, vulnerability_data, client_id, client_secret, tsg_id, token_file, max_workers, extra_query_params=''):
-    return create_objects(scope, start_index, 'vulnerability-protection-profiles?', vulnerability_data, client_id, client_secret, tsg_id, token_file, max_workers=max_workers, extra_query_params=extra_query_params)
-
-def create_spyware_profiles(scope, start_index, spyware_data, client_id, client_secret, tsg_id, token_file, max_workers, extra_query_params=''):
-    return create_objects(scope, start_index, 'anti-spyware-profiles?', spyware_data, client_id, client_secret, tsg_id, token_file, max_workers=max_workers, extra_query_params=extra_query_params)
-
-def create_virus_profiles(scope, start_index, virus_data, client_id, client_secret, tsg_id, token_file, max_workers, extra_query_params=''):
-    return create_objects(scope, start_index, 'wildfire-anti-virus-profiles?', virus_data, client_id, client_secret, tsg_id, token_file, max_workers=max_workers, extra_query_params=extra_query_params)
-
-def create_profile_group_profiles(scope, start_index, group_data, client_id, client_secret, tsg_id, token_file, max_workers, extra_query_params=''):
-    return create_objects(scope, start_index, 'profile-groups?', group_data, client_id, client_secret, tsg_id, token_file, max_workers=max_workers, extra_query_params=extra_query_params)
-
-def create_address_objects(scope, start_index, addresses_data, client_id, client_secret, tsg_id, token_file, max_workers, extra_query_params=''):
-    return create_objects(scope, start_index, 'addresses?', addresses_data, client_id, client_secret, tsg_id, token_file, max_workers=max_workers, extra_query_params=extra_query_params)
-
-def create_address_group_objects(scope, start_index, address_groups_data, client_id, client_secret, tsg_id, token_file, max_workers, extra_query_params=''):
-    return create_objects(scope, start_index, 'address-groups?', address_groups_data, client_id, client_secret, tsg_id, token_file, max_workers=max_workers, extra_query_params=extra_query_params)
-
-def create_service_objects(scope, start_index, services_data, client_id, client_secret, tsg_id, token_file, max_workers, extra_query_params=''):
-    return create_objects(scope, start_index, 'services?', services_data, client_id, client_secret, tsg_id, token_file, max_workers=max_workers, extra_query_params=extra_query_params)
-
-def create_service_group_objects(scope, start_index, services_group_data, client_id, client_secret, tsg_id, token_file, max_workers, extra_query_params=''):
-    return create_objects(scope, start_index, 'service-groups?', services_group_data, client_id, client_secret, tsg_id, token_file, max_workers=max_workers, extra_query_params=extra_query_params)
-
-def create_edl_objects(scope, start_index, edl_data, client_id, client_secret, tsg_id, token_file, max_workers, extra_query_params=''):
-    return create_objects(scope, start_index, 'external-dynamic-lists?', edl_data, client_id, client_secret, tsg_id, token_file, max_workers=max_workers, extra_query_params=extra_query_params)
-
-def create_app_filter_objects(scope, start_index, app_filter_data, client_id, client_secret, tsg_id, token_file, max_workers, extra_query_params=''):
-    return create_objects(scope, start_index, 'application-filters?', app_filter_data, client_id, client_secret, tsg_id, token_file, max_workers=max_workers, extra_query_params=extra_query_params)
-
-def create_app_group_objects(scope, start_index, app_group_data, client_id, client_secret, tsg_id, token_file, max_workers, extra_query_params=''):
-    return create_objects(scope, start_index, 'application-groups?', app_group_data, client_id, client_secret, tsg_id, token_file, max_workers=max_workers, extra_query_params=extra_query_params)
-
-def create_security_rules(scope, start_index, security_rules_data, client_id, client_secret, tsg_id, token_file, max_workers, extra_query_params=''):
-    return create_objects(scope, start_index, 'security-rules?', security_rules_data, client_id, client_secret, tsg_id, token_file, max_workers=max_workers, extra_query_params=extra_query_params)
-
-def create_nat_rules(scope, start_index, nat_rules_data, client_id, client_secret, tsg_id, token_file, max_workers, extra_query_params=''):
-    return create_objects(scope, start_index, 'nat-rules?', nat_rules_data, client_id, client_secret, tsg_id, token_file, max_workers=max_workers, extra_query_params=extra_query_params)

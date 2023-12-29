@@ -9,9 +9,6 @@ from token_utils import obtain_api_token
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from threading import Lock
 
-# Global Logging
-logging.basicConfig(filename='debug-log.txt', level=logging.INFO, format='%(asctime)s %(levelname)s: %(message)s')
-
 # Global lock for token refresh
 token_refresh_lock = Lock()
 
@@ -33,14 +30,17 @@ def create_object(url, headers, item_data, retries=1, delay=5, client_id=None, c
                 return ('This object created', item_data['name'])
             else:
                 error_response = response.json()
-                logging.error(f"API Error for '{item_data.get('name', '')}': {error_response}, Status Code: {response.status_code}")
                 if response.status_code == 400:
                     if "object already exists" in str(error_response).lower():
+                        logging.info(f"Object already exists for '{item_data.get('name', '')}'")
                         return ('This object exists', item_data['name'])
                     if "is not a valid reference" in str(error_response).lower():
                         logging.warning(f"Invalid reference in object '{item_data.get('name', '')}' -- we do re-attempt, verify this went through properly'")
                         time.sleep(delay)
                         continue
+                    logging.error(f"API Error for '{item_data.get('name', '')}': {error_response}, Status Code: {response.status_code}")
+                else:
+                    logging.error(f"API Error for '{item_data.get('name', '')}': {error_response}, Status Code: {response.status_code}")
                 return ('error creating object', item_data['name'], "Error: Object creation failed")
 
         except Exception as e:

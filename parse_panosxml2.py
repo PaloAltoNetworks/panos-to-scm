@@ -343,30 +343,74 @@ def parse_profile_group_entries(file_path, config_type, device_group_name=None):
 
     return profile_groups
 
+def map_color_code_to_color(color_code):
+    colorCodes = {
+        'color1': 'Red',
+        'color2': 'Green',
+        'color3': 'Blue',
+        'color4': 'Yellow',
+        'color5': 'Copper',
+        'color6': 'Orange',
+        'color7': 'Purple',
+        'color8': 'Gray',
+        'color9': 'Light Green',
+        'color10': 'Cyan',
+        'color11': 'Light Gray',
+        'color12': 'Blue Gray',
+        'color13': 'Lime',
+        'color14': 'Black',
+        'color15': 'Gold',
+        'color16': 'Brown',
+        'color17': 'Olive',
+        'color19': 'Maroon',
+        'color20': 'Red-Orange',
+        'color21': 'Yellow-Orange',
+        'color22': 'Forest Green',
+        'color23': 'Turquoise Blue',
+        'color24': 'Azure Blue',
+        'color25': 'Cerulean Blue',
+        'color26': 'Midnight Blue',
+        'color27': 'Medium Blue',
+        'color28': 'Cobalt Blue',
+        'color29': 'Violet Blue',
+        'color30': 'Blue Violet',
+        'color31': 'Medium Violet',
+        'color32': 'Medium Rose',
+        'color33': 'Lavender',
+        'color34': 'Orchid',
+        'color35': 'Thistle',
+        'color36': 'Peach',
+        'color37': 'Salmon',
+        'color38': 'Magenta',
+        'color39': 'Red Violet',
+        'color40': 'Mahogany',
+        'color41': 'Burnt Sienna',
+        'color42': 'Chestnut'
+        }
+    return colorCodes.get(color_code)
+
 def parse_tag_entries(file_path, config_type, device_group_name=None):
     tree = ET.parse(file_path)
     root = tree.getroot()
 
     base_xpath = './/devices/entry/vsys/entry/tag/entry'
     if config_type == 'panorama/shared':
-        base_xpath = './sharedared/tag/entry'
+        base_xpath = './shared/tag/entry'
     elif config_type == 'panorama/device-group':
-        base_xpath = f'.//devices/entry/device-group/entry[@name="{device_group_name}"]/tag/entry'
+        base_xpath = f'./devices/entry/device-group/entry[@name="{device_group_name}"]/tag/entry'
 
     tags = []
 
     for entry in root.findall(base_xpath):
-    # for entry in root.findall('.//devices/entry/vsys/entry/tag/entry'):
         name = entry.get('name')
-        # tag_color = entry.find('color')
+        tag_color_element = entry.find('color')
+        tag_color = map_color_code_to_color(tag_color_element.text) if tag_color_element is not None else None
 
-        tag = {
-            'name': name,
-        }
+        tag = {'name': name}
+        if tag_color:
+            tag['color'] = tag_color
 
-        # Filter out None values from the tag dictionary
-        filtered_tag = {k: v for k, v in tag.items() if v is not None}
-        tags.append(filtered_tag)
+        tags.append(tag)
 
     return tags
 

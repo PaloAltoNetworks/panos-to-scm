@@ -24,7 +24,6 @@ def create_object(url, headers, item_data, retries=1, delay=5, client_id=None, c
         try:
             with token_refresh_lock:  
                 if token_is_expired(access_token, token_file):
-                    print(f"Token expired, refreshing token...")
                     logging.debug("Token expired, refreshing token...")
                     access_token = obtain_api_token(client_id, client_secret, tsg_id, token_file, force_refresh=True)
                     headers["Authorization"] = f"Bearer {access_token}"
@@ -32,31 +31,20 @@ def create_object(url, headers, item_data, retries=1, delay=5, client_id=None, c
             response = requests.post(url, headers=headers, json=item_data, timeout=10)
             if response.status_code == 201:
                 return ('This object created', item_data['name'])
-            elif response.status_code == 400:
+            else:
                 error_response = response.json()
-                error_response_str = str(error_response).lower()
-
-                # Log the actual error response for debugging
-                # print(f"Error response for '{item_data.get('name', '')}': {error_response}")
-
-                # Check for "Object Already Exists" error
-                if "object already exists" in error_response_str:
-                    return ('This object exists', item_data['name'])
-
-                # Invalid reference handling
-                if "is not a valid reference" in error_response_str:
-                    print(f"Invalid reference in object '{item_data.get('name', '')}'")
-                    logging.warning(f"Invalid reference in object '{item_data.get('name', '')} -- we do re-attempt, verify this went through properly'")
-                    time.sleep(delay)
-                    continue
-
-                # print(f"Error response for '{item_data.get('name', '')}': {error_response}")
-                logging.error(f"Error response for '{item_data.get('name', '')}': {error_response}")
+                logging.error(f"API Error for '{item_data.get('name', '')}': {error_response}, Status Code: {response.status_code}")
+                if response.status_code == 400:
+                    if "object already exists" in str(error_response).lower():
+                        return ('This object exists', item_data['name'])
+                    if "is not a valid reference" in str(error_response).lower():
+                        logging.warning(f"Invalid reference in object '{item_data.get('name', '')}' -- we do re-attempt, verify this went through properly'")
+                        time.sleep(delay)
+                        continue
                 return ('error creating object', item_data['name'], "Error: Object creation failed")
-            # Handling other status codes...
+
         except Exception as e:
-            # print(f"Error response for '{item_data.get('name', '')}': {error_response}")
-            logging.error(f"Error response for '{item_data.get('name', '')}': {error_response}")
+            logging.error(f"Exception occurred for '{item_data.get('name', '')}': {str(e)}")
             return ('error creating object', item_data['name'], "Exception occurred")
 
     return ('error creating object', item_data['name'], "Failed after retries")

@@ -59,11 +59,11 @@ def parse_url_category_entries(file_path, config_type, device_group_name=None):
     tree = ET.parse(file_path)
     root = tree.getroot()
 
-    base_xpath = './/devices/entry/vsys/entry/profiles/custom-url-category/entry'
+    base_xpath = './devices/entry/vsys/entry/profiles/custom-url-category/entry'
     if config_type == 'panorama/shared':
-        base_xpath = './sharedared/profiles/custom-url-category/entry'
+        base_xpath = './shared/profiles/custom-url-category/entry'
     elif config_type == 'panorama/device-group':
-        base_xpath = f'.//devices/entry/device-group/entry[@name="{device_group_name}"]/profiles/custom-url-category/entry'
+        base_xpath = f'./devices/entry/device-group/entry[@name="{device_group_name}"]/profiles/custom-url-category/entry'
 
     url_category = []
     for entry in root.findall(base_xpath):
@@ -91,16 +91,16 @@ def parse_url_profiles_entries(file_path, config_type, device_group_name=None):
     tree = ET.parse(file_path)
     root = tree.getroot()
 
-    base_xpath = './/devices/entry/vsys/entry/profiles/url-filtering/entry'
+    base_xpath = './devices/entry/vsys/entry/profiles/url-filtering/entry'
     if config_type == 'panorama/shared':
-        base_xpath = './sharedared/profiles/url-filtering/entry'
+        base_xpath = './shared/profiles/url-filtering/entry'
     elif config_type == 'panorama/device-group':
-        base_xpath = f'.//devices/entry/device-group/entry[@name="{device_group_name}"]/profiles/url-filtering/entry'
+        base_xpath = f'./devices/entry/device-group/entry[@name="{device_group_name}"]/profiles/url-filtering/entry'
 
     url_profiles = []
 
     for entry in root.findall(base_xpath):
-    # for entry in root.findall('.//devices/entry/vsys/entry/profiles/url-filtering/entry'):
+    # for entry in root.findall('./devices/entry/vsys/entry/profiles/url-filtering/entry'):
         name = entry.get('name')
         description = entry.find('description')
         block_elements = entry.find('block')
@@ -127,16 +127,16 @@ def parse_vulnerability_profiles_entries(file_path, config_type, device_group_na
     tree = ET.parse(file_path)
     root = tree.getroot()
 
-    base_xpath = './/devices/entry/vsys/entry/profiles/vulnerability/entry'
+    base_xpath = './devices/entry/vsys/entry/profiles/vulnerability/entry'
     if config_type == 'panorama/shared':
-        base_xpath = './sharedared/profiles/vulnerability/entry'
+        base_xpath = './shared/profiles/vulnerability/entry'
     elif config_type == 'panorama/device-group':
-        base_xpath = f'.//devices/entry/device-group/entry[@name="{device_group_name}"]/profilesvulnerability/entry'    
+        base_xpath = f'./devices/entry/device-group/entry[@name="{device_group_name}"]/profilesvulnerability/entry'    
     
     vulnerability_profiles = []
 
     for profile_entry in root.findall(base_xpath):
-    # for profile_entry in root.findall('.//devices/entry/vsys/entry/profiles/vulnerability/entry'):
+    # for profile_entry in root.findall('./devices/entry/vsys/entry/profiles/vulnerability/entry'):
         profile_name = profile_entry.get('name')
         description_element = profile_entry.find('description')
         description = description_element.text if description_element is not None else None
@@ -192,16 +192,16 @@ def parse_spyware_profiles_entries(file_path, config_type, device_group_name=Non
     tree = ET.parse(file_path)
     root = tree.getroot()
 
-    base_xpath = './/devices/entry/vsys/entry/profiles/spyware/entry'
+    base_xpath = './devices/entry/vsys/entry/profiles/spyware/entry'
     if config_type == 'panorama/shared':
-        base_xpath = './sharedared/profiles/spyware/entry'
+        base_xpath = './shared/profiles/spyware/entry'
     elif config_type == 'panorama/device-group':
-        base_xpath = f'.//devices/entry/device-group/entry[@name="{device_group_name}"]/profiles/spyware/entry'
+        base_xpath = f'./devices/entry/device-group/entry[@name="{device_group_name}"]/profiles/spyware/entry'
 
     spyware_profiles = []
 
     for profile_entry in root.findall(base_xpath):
-    # for profile_entry in root.findall('.//devices/entry/vsys/entry/profiles/spyware/entry'):
+    # for profile_entry in root.findall('./devices/entry/vsys/entry/profiles/spyware/entry'):
         profile_name = profile_entry.get('name')
         description_element = profile_entry.find('description')
         description = description_element.text if description_element is not None else None
@@ -259,16 +259,16 @@ def parse_antivirus_profiles_entries(file_path, config_type, device_group_name=N
     tree = ET.parse(file_path)
     root = tree.getroot()
 
-    base_xpath = './/devices/entry/vsys/entry/profiles/virus/entry'
+    base_xpath = './devices/entry/vsys/entry/profiles/virus/entry'
     if config_type == 'panorama/shared':
-        base_xpath = './sharedared/profiles/virus/entry'
+        base_xpath = './shared/profiles/virus/entry'
     elif config_type == 'panorama/device-group':
-        base_xpath = f'.//devices/entry/device-group/entry[@name="{device_group_name}"]/profiles/virus/entry'
+        base_xpath = f'./devices/entry/device-group/entry[@name="{device_group_name}"]/profiles/virus/entry'
 
     antivirus_profiles = []
 
     for profile_entry in root.findall(base_xpath):
-    # for profile_entry in root.findall('.//devices/entry/vsys/entry/profiles//virus/entry'):
+    # for profile_entry in root.findall('./devices/entry/vsys/entry/profiles//virus/entry'):
         profile_name = profile_entry.get('name')
         description_element = profile_entry.find('description')
         description = description_element.text if description_element is not None else None
@@ -307,16 +307,16 @@ def parse_profile_group_entries(file_path, config_type, device_group_name=None):
     tree = ET.parse(file_path)
     root = tree.getroot()
 
-    base_xpath = './/devices/entry/vsys/entry/profile-group/entry'
+    base_xpath = './devices/entry/vsys/entry/profile-group/entry'
     if config_type == 'panorama/shared':
-        base_xpath = './sharedared/profile-group/entry'
+        base_xpath = './shared/profile-group/entry'
     elif config_type == 'panorama/device-group':
-        base_xpath = f'.//devices/entry/device-group/entry[@name="{device_group_name}"]/profile-group/entry'
+        base_xpath = f'./devices/entry/device-group/entry[@name="{device_group_name}"]/profile-group/entry'
 
     profile_groups = []
 
     for entry in root.findall(base_xpath):
-    # for entry in root.findall('.//devices/entry/vsys/entry/profile-group/entry'):
+    # for entry in root.findall('./devices/entry/vsys/entry/profile-group/entry'):
         profile_group_name = entry.get('name')
 
         profile_group = {'name': profile_group_name}
@@ -393,7 +393,7 @@ def parse_tag_entries(file_path, config_type, device_group_name=None):
     tree = ET.parse(file_path)
     root = tree.getroot()
 
-    base_xpath = './/devices/entry/vsys/entry/tag/entry'
+    base_xpath = './devices/entry/vsys/entry/tag/entry'
     if config_type == 'panorama/shared':
         base_xpath = './shared/tag/entry'
     elif config_type == 'panorama/device-group':
@@ -418,16 +418,16 @@ def parse_address_entries(file_path, config_type, device_group_name=None):
     tree = ET.parse(file_path)
     root = tree.getroot()
 
-    base_xpath = './/devices/entry/vsys/entry/address/entry'
+    base_xpath = './devices/entry/vsys/entry/address/entry'
     if config_type == 'panorama/shared':
-        base_xpath = './sharedared/address/entry'
+        base_xpath = './shared/address/entry'
     elif config_type == 'panorama/device-group':
-        base_xpath = f'.//devices/entry/device-group/entry[@name="{device_group_name}"]/address/entry'
+        base_xpath = f'./devices/entry/device-group/entry[@name="{device_group_name}"]/address/entry'
 
     addresses = []
 
     for entry in root.findall(base_xpath):
-    # for entry in root.findall('.//devices/entry/vsys/entry/address/entry'):
+    # for entry in root.findall('./devices/entry/vsys/entry/address/entry'):
         name = entry.get('name')
         ip_netmask = entry.find('ip-netmask')
         ip_range = entry.find('ip-range')
@@ -458,12 +458,12 @@ def parse_address_group_entries(file_path, config_type, device_group_name=None):
     if config_type == 'panorama/shared':
         base_xpath = './shared/address-group/entry'
     elif config_type == 'panorama/device-group':
-        base_xpath = f'.//devices/entry/device-group/entry[@name="{device_group_name}"]/address-group/entry'
+        base_xpath = f'./devices/entry/device-group/entry[@name="{device_group_name}"]/address-group/entry'
 
     address_group = []
 
     for entry in root.findall(base_xpath):
-    # for entry in root.findall('.//devices/entry/vsys/entry/address-group/entry'):
+    # for entry in root.findall('./devices/entry/vsys/entry/address-group/entry'):
         name = entry.get('name')
         description = entry.find('description')
         static = entry.find('static')
@@ -493,12 +493,12 @@ def parse_service_entries(file_path, config_type, device_group_name=None):
     if config_type == 'panorama/shared':
         base_xpath = './shared/service/entry'
     elif config_type == 'panorama/device-group':
-        base_xpath = f'.//devices/entry/device-group/entry[@name="{device_group_name}"]/service/entry'
+        base_xpath = f'./devices/entry/device-group/entry[@name="{device_group_name}"]/service/entry'
 
     service_entries = []
 
     for entry in root.findall(base_xpath):
-    # for entry in root.findall('.//devices/entry/vsys/entry/service/entry'):
+    # for entry in root.findall('./devices/entry/vsys/entry/service/entry'):
         name = entry.get('name')
         description = entry.find('description')
         tag = entry.find('tag')
@@ -541,12 +541,12 @@ def parse_service_group_entries(file_path, config_type, device_group_name=None):
     if config_type == 'panorama/shared':
         base_xpath = './shared/service-group/entry'
     elif config_type == 'panorama/device-group':
-        base_xpath = f'.//devices/entry/device-group/entry[@name="{device_group_name}"]/service-group/entry'
+        base_xpath = f'./devices/entry/device-group/entry[@name="{device_group_name}"]/service-group/entry'
 
     service_groups = []
 
     for entry in root.findall(base_xpath):
-    # for entry in root.findall('.//devices/entry/vsys/entry/service-group/entry'):
+    # for entry in root.findall('./devices/entry/vsys/entry/service-group/entry'):
         name = entry.get('name')
         members = entry.find('members')
         description = entry.find('description')
@@ -573,12 +573,12 @@ def parse_edl_entries(file_path, config_type, device_group_name=None):
     if config_type == 'panorama/shared':
         base_xpath = './shared/external-list/entry'
     elif config_type == 'panorama/device-group':
-        base_xpath = f'.//devices/entry/device-group/entry[@name="{device_group_name}"]/external-list/entry'
+        base_xpath = f'./devices/entry/device-group/entry[@name="{device_group_name}"]/external-list/entry'
 
     edl_entries = []
 
     for entry in root.findall(base_xpath):
-    # for entry in root.findall('.//devices/entry/vsys/entry/external-list/entry'):
+    # for entry in root.findall('./devices/entry/vsys/entry/external-list/entry'):
         edl_entry_name = entry.get('name')
 
         type_element = entry.find('type')
@@ -616,12 +616,12 @@ def parse_application_filter_entries(file_path, config_type, device_group_name=N
     if config_type == 'panorama/shared':
         base_xpath = './shared/application-filter/entry'
     elif config_type == 'panorama/device-group':
-        base_xpath = f'.//devices/entry/device-group/entry[@name="{device_group_name}"]/application-filter/entry'
+        base_xpath = f'./devices/entry/device-group/entry[@name="{device_group_name}"]/application-filter/entry'
 
     application_filters = []
 
     for entry in root.findall(base_xpath):
-    # for entry in root.findall(".//devices/entry/vsys/entry/application-filter/entry"):
+    # for entry in root.findall("./devices/entry/vsys/entry/application-filter/entry"):
         filter_entry = {"name": entry.get("name")}
 
         # Extract categories, subcategories, and technologies
@@ -652,12 +652,12 @@ def parse_application_group_entries(file_path, config_type, device_group_name=No
     if config_type == 'panorama/shared':
         base_xpath = './shared/application-group/entry'
     elif config_type == 'panorama/device-group':
-        base_xpath = f'.//devices/entry/device-group/entry[@name="{device_group_name}"]/application-group/entry'
+        base_xpath = f'./devices/entry/device-group/entry[@name="{device_group_name}"]/application-group/entry'
 
     application_groups = []
 
     for entry in root.findall(base_xpath):
-    # for entry in root.findall('.//devices/entry/vsys/entry/application-group/entry'):
+    # for entry in root.findall('./devices/entry/vsys/entry/application-group/entry'):
         name = entry.get('name')
         members_elements = entry.find('members')
 

@@ -2,11 +2,10 @@
 Migrate Panorama or Local PANOS config(FROM XML file) to Strata Cloud Manager
 
 # Requirements
-First, you need to install the python-dotenv package. You can do this using pip:
+First, you need to install the python-dotenv package. You can do this using pip:<br />
 pip install python-dotenv
 
 ## Update the following
-On main.py update client_id, tsg_id with your Service Account information.
 update ".env" file with your client_id, client_secret and tsg_id
 
 Currently using environment variables to store your secret

@@ -24,6 +24,8 @@ import os
 import time
 import json
 import logging
+from log_module.scm_logging import setup_logging
+setup_logging()
 from api.token_utils import obtain_api_token, token_is_expired, refresh_token_if_needed
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from threading import Lock

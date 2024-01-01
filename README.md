@@ -22,7 +22,7 @@ Additionally, update xml_file_path with your XML file export of Panorama or Loca
 -URL Filter Profiles<br />
 -Vulnerability Profiles<br />
 -Anti-Spyware Profiles - SCM<br />
--Anti-Virus Profiles - SCM combines Virus/WildFire together.. As of now, it's importing Anti-Virus (but decoder's do not show currently) - Work in progress<br />
+-Anti-Virus Profiles - SCM combines Virus/WildFire together.. As of now, it's importing Anti-Virus (but decoder's do not show currently)<br />
 -Profile Groups<br />
 -Tags<br />
 -Address Objects<br />

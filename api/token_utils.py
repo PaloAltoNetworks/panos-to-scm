@@ -24,6 +24,9 @@ import json
 import time
 import os
 import logging
+from log_module.scm_logging import setup_logging
+### Start Logging
+setup_logging()
 from requests.exceptions import RequestException
 
 # Global variable to store the token

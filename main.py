@@ -26,12 +26,12 @@ logging.basicConfig(filename='debug-log.txt', level=logging.DEBUG, format='%(asc
 import os
 import json
 import time
-import parse_panosxml2
+from parse import parse_panosxml2
 from dotenv import load_dotenv
 ### Load env variables from .env file
 load_dotenv()
-from token_utils import obtain_api_token
-from post_utils import create_objects
+from api.token_utils import obtain_api_token
+from scm.post_utils import create_objects
 
 def mark_start_of_run_in_log(log_file):
     # Check the current size of the log file
@@ -106,7 +106,7 @@ def main():
     max_workers = 3 ##Careful as this can cause API rate limiting blockage by API endpoint... 3 seems to be a good rate limiter
 
     ### XML FilePath
-    xml_file_path = 'example-palo-config.xml'  ##Update with your XML file - current supports Panorama and Local FW configuration
+    xml_file_path = 'example-config.xml'  ##Update with your XML file - current supports Panorama and Local FW configuration
 
     ###User input if XML file is Local Firewall XML, Panorama/Shared or Panorama/Device-group
     config_type = input("Enter the configuration type (local, panorama/shared, panorama/device-group): ").strip().lower()

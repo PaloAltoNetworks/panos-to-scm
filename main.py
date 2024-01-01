@@ -38,7 +38,7 @@ def print_warnings_and_errors_from_log(log_file, start_position):
     except FileNotFoundError:
         print("Log file not found.")
 
-def process_entries(scope, entries, create_func, entry_type, client_id, client_secret, tsg_id, token_file, max_workers, object_type, extra_query_params=''):
+def process_entries(scope, entries, create_func, entry_type, client_id, client_secret, tsg_id, max_workers, object_type, extra_query_params=''):
     if not entries:
         print("No entries to process.")
         return
@@ -49,7 +49,7 @@ def process_entries(scope, entries, create_func, entry_type, client_id, client_s
     created_count, exists_count, error_count = 0, 0, 0
     error_objects = []
 
-    results = create_func(scope, 0, object_type, entries, client_id, client_secret, tsg_id, token_file, max_workers=max_workers, extra_query_params=extra_query_params)
+    results = create_func(scope, 0, object_type, entries, client_id, client_secret, tsg_id, max_workers=max_workers, extra_query_params=extra_query_params)
     for result in results:
         if len(result) == 3:
             status, name, error_message = result
@@ -164,38 +164,38 @@ def main():
     """
     I suggest uncommenting a few of the process_entries at a time to verify the syntax is correct, etc etc etc
     """  
-    process_entries(scope, edl_data_entries, create_objects, "EDL objects", client_id, client_secret, tsg_id, token_file, max_workers, object_type='external-dynamic-lists?', extra_query_params='')
+    process_entries(scope, edl_data_entries, create_objects, "EDL objects", client_id, client_secret, tsg_id, max_workers, object_type='external-dynamic-lists?', extra_query_params='')
 
-    process_entries(scope, url_categories, create_objects, "url-categories", client_id, client_secret, tsg_id, token_file, max_workers, object_type='url-categories?', extra_query_params='')
+    process_entries(scope, url_categories, create_objects, "url-categories", client_id, client_secret, tsg_id, max_workers, object_type='url-categories?', extra_query_params='')
 
-    process_entries(scope, url_profiles, create_objects, "url-profiles", client_id, client_secret, tsg_id, token_file, max_workers, object_type='url-access-profiles?', extra_query_params='')
+    process_entries(scope, url_profiles, create_objects, "url-profiles", client_id, client_secret, tsg_id, max_workers, object_type='url-access-profiles?', extra_query_params='')
 
-    process_entries(scope, vulnerability_profiles, create_objects, "vulnerability-profiles", client_id, client_secret, tsg_id, token_file, max_workers, object_type='vulnerability-protection-profiles?', extra_query_params='')
+    process_entries(scope, vulnerability_profiles, create_objects, "vulnerability-profiles", client_id, client_secret, tsg_id, max_workers, object_type='vulnerability-protection-profiles?', extra_query_params='')
 
-    process_entries(scope, spyware_profiles, create_objects, "anti-spyware profiles", client_id, client_secret, tsg_id, token_file, max_workers, object_type='anti-spyware-profiles?', extra_query_params='')
+    process_entries(scope, spyware_profiles, create_objects, "anti-spyware profiles", client_id, client_secret, tsg_id, max_workers, object_type='anti-spyware-profiles?', extra_query_params='')
 
-    process_entries(scope, virus_profiles, create_objects, "anti-virus profiles", client_id, client_secret, tsg_id, token_file, max_workers, object_type='wildfire-anti-virus-profiles?', extra_query_params='')
+    process_entries(scope, virus_profiles, create_objects, "anti-virus profiles", client_id, client_secret, tsg_id, max_workers, object_type='wildfire-anti-virus-profiles?', extra_query_params='')
 
-    process_entries(scope, profile_group_entries, create_objects, "profile groups", client_id, client_secret, tsg_id, token_file, max_workers, object_type='profile-groups?', extra_query_params='')
+    process_entries(scope, profile_group_entries, create_objects, "profile groups", client_id, client_secret, tsg_id, max_workers, object_type='profile-groups?', extra_query_params='')
 
-    process_entries(scope, tag_entries, create_objects, "tag objects", client_id, client_secret, tsg_id, token_file, max_workers, object_type='tags?', extra_query_params='')
+    process_entries(scope, tag_entries, create_objects, "tag objects", client_id, client_secret, tsg_id, max_workers, object_type='tags?', extra_query_params='')
     
-    process_entries(scope, address_entries, create_objects, 'address objects', client_id, client_secret, tsg_id, token_file, max_workers, object_type='addresses?', extra_query_params='')
+    process_entries(scope, address_entries, create_objects, 'address objects', client_id, client_secret, tsg_id, max_workers, object_type='addresses?', extra_query_params='')
     
-    process_entries(scope, address_group_entries, create_objects, "address-group objects", client_id, client_secret, tsg_id, token_file, max_workers, object_type='address-groups?', extra_query_params='')
+    process_entries(scope, address_group_entries, create_objects, "address-group objects", client_id, client_secret, tsg_id, max_workers, object_type='address-groups?', extra_query_params='')
     
-    process_entries(scope, service_entries, create_objects, "service objects", client_id, client_secret, tsg_id, token_file, max_workers, object_type='services?', extra_query_params='')
+    process_entries(scope, service_entries, create_objects, "service objects", client_id, client_secret, tsg_id, max_workers, object_type='services?', extra_query_params='')
     
-    process_entries(scope, service_group_entries, create_objects, "service-group objects", client_id, client_secret, tsg_id, token_file, max_workers, object_type='service-groups?', extra_query_params='')
+    process_entries(scope, service_group_entries, create_objects, "service-group objects", client_id, client_secret, tsg_id, max_workers, object_type='service-groups?', extra_query_params='')
     
-    process_entries(scope, app_filter_entries, create_objects, "application-filter objects", client_id, client_secret, tsg_id, token_file, max_workers, object_type='application-filters?', extra_query_params='')
+    process_entries(scope, app_filter_entries, create_objects, "application-filter objects", client_id, client_secret, tsg_id, max_workers, object_type='application-filters?', extra_query_params='')
     
-    process_entries(scope, application_group_entries, create_objects, "application-groups objects", client_id, client_secret, tsg_id, token_file, max_workers, object_type='application-groups?', extra_query_params='')    
+    process_entries(scope, application_group_entries, create_objects, "application-groups objects", client_id, client_secret, tsg_id, max_workers, object_type='application-groups?', extra_query_params='')    
     
-    process_entries(scope, security_rule_pre_entries, create_objects, "security rules", client_id, client_secret, tsg_id, token_file, object_type='security-rules?', max_workers=1, extra_query_params="pre") ###### Setting max_workers=1 as security rule sequencing is important (i.e. the rules need to be in proper ordering)
+    process_entries(scope, security_rule_pre_entries, create_objects, "security rules", client_id, client_secret, tsg_id,  object_type='security-rules?', max_workers=1, extra_query_params="pre") ###### Setting max_workers=1 as security rule sequencing is important (i.e. the rules need to be in proper ordering)
     
     if security_rule_post_entries:
-        process_entries(scope, security_rule_post_entries, create_objects, "security rules", client_id, client_secret, tsg_id, token_file, object_type='security-rules?', max_workers=1, extra_query_params="post") ###### Setting max_workers=1 as security rule sequencing is important (i.e. the rules need to be in proper ordering)
+        process_entries(scope, security_rule_post_entries, create_objects, "security rules", client_id, client_secret, tsg_id,  object_type='security-rules?', max_workers=1, extra_query_params="post") ###### Setting max_workers=1 as security rule sequencing is important (i.e. the rules need to be in proper ordering)
 
     """
     Uncomment the following NAT rule lines when ever feature added to the SCM API

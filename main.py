@@ -26,6 +26,7 @@ logging.basicConfig(filename='debug-log.txt', level=logging.DEBUG, format='%(asc
 import os
 import json
 import time
+import xml.etree.ElementTree as ET
 from parse import parse_panosxml2
 from dotenv import load_dotenv
 ### Load env variables from .env file
@@ -106,33 +107,34 @@ def main():
     max_workers = 3 ##Careful as this can cause API rate limiting blockage by API endpoint... 3 seems to be a good rate limiter
 
     ### XML FilePath
-    xml_file_path = 'example-config.xml'  ##Update with your XML file - current supports Panorama and Local FW configuration
+    xml_file_path = 'example-config.xml'  # Update with your XML file - current supports Panorama and Local FW configuration
 
-    ###User input if XML file is Local Firewall XML, Panorama/Shared or Panorama/Device-group
-    config_type = input("Enter the configuration type (local, panorama/shared, panorama/device-group): ").strip().lower()
+    # Load and parse the XML file to determine configuration type
+    tree = ET.parse(xml_file_path)
+    root = tree.getroot()
+
+    # Check for the existence of the Panorama device-group XPath
+    device_group_xpath = root.find('.//devices/entry/device-group')
     device_group_name = None
 
-    ###Scope is the folder within CloudManager that objects/policies pulled from your PANOS XML with get placed into CloudManager.. Panorama/Shared automatically goes to "All" Folder(Global)
-    
-    if config_type == 'local':
+    if device_group_xpath is not None:
+        # Panorama configuration
+        config_choice = input("Is this a Panorama 'shared' configuration or 'device-group' configuration? Enter 'shared' or 'device-group': ").strip().lower()
+        if config_choice == 'device-group':
+            device_group_name = input("Enter the device-group name: ").strip()
             confirm_folder = input('What folder do you want the objects/policies to end up in? \n Use All for "Global" -Example "US-East-DC1" This is Case Sensitive: ').strip()
             scope = confirm_folder
-
-    if config_type == 'panorama/device-group':
-        device_group_name = input("Enter the device-group name: ").strip()
-        confirm_folder = input('What folder do you want the objects/policies to end up in? \n Use All for "Global" -Example "US-East-DC1" This is Case Sensitive: ').strip() 
+            config_type = 'panorama/device-group'
+        else:  # Assume shared if not device-group
+            confirm_global = input("Do you want these objects/policies to end up in the Global Folder on SCM? yes/no: ").strip().lower()
+            scope = "All" if confirm_global == 'yes' else input('Enter folder name: ').strip()
+            config_type = 'panorama/shared'
+    else:
+        # Local configuration
+        confirm_folder = input('What folder do you want the objects/policies to end up in? \n Use All for "Global" -Example "US-East-DC1" This is Case Sensitive: ').strip()
         scope = confirm_folder
-
-    if config_type == 'panorama/shared':
-        ###Confirm all scope for shared panorama objects/policies
-        confirm_global = input("Do you want these objects/policies to end up in the Global Folder on SCM? yes/no: ").strip().lower()
-        if confirm_global == 'yes':
-            scope = "All"
-        else:
-            confirm_folder = input('What folder do you want the objects/policies to end up in? \n Use All for "Global" -Example "US-East-DC1" This is Case Sensitive: ').strip()
-            scope = confirm_folder
+        config_type = 'local'
     
-
     ### Parse XML file for different object types ####
     """
     I suggest uncommenting the print below one at a time to verify data is actually parsed

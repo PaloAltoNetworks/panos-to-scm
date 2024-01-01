@@ -8,11 +8,7 @@ pip install python-dotenv
 ## Update the following
 update ".env" file with your client_id, client_secret and tsg_id
 
-Currently using environment variables to store your secret
---Set environment variable for your secret key from your API service account
---In MacOS/Linux "export CLIENT_SECRET=your-text-string" In Windows CMD "setx CLIENT_SECRET your-text-string"
-
-Additionally, update xml_file_path with your XML file export of Panorama or Local Firewall running config
+Additionally, update xml_file_path from main() with your XML file export of Panorama or Local Firewall running config
 
 ## Currently Support Features:
 

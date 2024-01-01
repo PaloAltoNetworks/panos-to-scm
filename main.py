@@ -8,6 +8,9 @@ import os
 import json
 import time
 import parse_panosxml2
+from dotenv import load_dotenv
+### Load env variables from .env file
+load_dotenv()
 from token_utils import obtain_api_token
 from post_utils import create_objects
 
@@ -75,13 +78,9 @@ def process_entries(scope, entries, create_func, entry_type, client_id, client_s
 
 def main():
     ### The below is used to pass to post_utils.py to obtain API token 
-    client_id = 'example-service-acct@123456789.iam.panserviceaccount.com' ### Update this with your API Service account
-    client_secret = os.environ.get('CLIENT_SECRET')
-    if not client_secret:
-        raise ValueError('''The CLIENT_SECRET environment variable is not set. Set environment variable for your secret key from your API service account
-In MacOS/Linux "export CLIENT_SECRET=your-text-string" In Windows CMD "setx CLIENT_SECRET your-text-string"''')
-
-    tsg_id = '123456789' ### Update this With your TSG ID
+    client_id = os.getenv('client_id')
+    client_secret = os.getenv('client_secret')
+    tsg_id = os.getenv('tsg_id')
     token_file = "token_cache.txt" ###Current iteration uses this file.. Will update eventually
 
     ###max_workers is used for parallel processing of API request - speed things along
@@ -89,7 +88,6 @@ In MacOS/Linux "export CLIENT_SECRET=your-text-string" In Windows CMD "setx CLIE
 
     ### XML FilePath
     xml_file_path = 'example-palo-config.xml'  ##Update with your XML file - current supports Panorama and Local FW configuration
-
 
     ###User input if XML file is Local Firewall XML, Panorama/Shared or Panorama/Device-group
     config_type = input("Enter the configuration type (local, panorama/shared, panorama/device-group): ").strip().lower()

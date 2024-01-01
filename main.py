@@ -19,44 +19,20 @@ CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
 """
 
-import logging
-# Configure logging for this module
-logging.basicConfig(filename='debug-log.txt', level=logging.DEBUG, format='%(asctime)s %(levelname)s: %(message)s')
-###import other modules/functions
 import os
 import json
 import time
 import xml.etree.ElementTree as ET
+import logging
+from log_module.scm_logging import setup_logging, mark_start_of_run_in_log, print_warnings_and_errors_from_log
+### Start Logging
+setup_logging()
 from parse import parse_panosxml2
 from dotenv import load_dotenv
 ### Load env variables from .env file
 load_dotenv()
 from api.token_utils import obtain_api_token
 from scm.post_utils import create_objects
-
-def mark_start_of_run_in_log(log_file):
-    # Check the current size of the log file
-    if os.path.exists(log_file):
-        position = os.path.getsize(log_file)
-    else:
-        position = 0
-
-    # Write the start marker
-    with open(log_file, 'a') as file:
-        start_marker = f"\n===== Script Run Start: {time.ctime()} =====\n"
-        file.write(start_marker)
-    
-    return position
-
-def print_warnings_and_errors_from_log(log_file, start_position):
-    try:
-        with open(log_file, 'r') as file:
-            file.seek(start_position)  # Jump to the start of the current run
-            for line in file:
-                if "WARNING" in line or "ERROR" in line or "CRITICAL" in line:
-                    print(line.strip())
-    except FileNotFoundError:
-        print("Log file not found.")
 
 def process_entries(scope, entries, create_func, entry_type, client_id, client_secret, tsg_id, max_workers, object_type, extra_query_params=''):
     if not entries:

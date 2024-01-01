@@ -7,22 +7,30 @@ import os
 import logging
 from requests.exceptions import RequestException
 
-def obtain_api_token(client_id, client_secret, tsg_id, token_file, force_refresh=False):
-    """
-    Obtain and return the API token. If force_refresh is False and a valid token is cached, 
-    return the cached token. Otherwise, request a new token and cache it.
-    """
-    if not force_refresh and os.path.exists(token_file):
-        try:
-            with open(token_file, "r") as f:
-                token_data = json.load(f)
+# Global variable to store the token
+token_data = None
 
-            if time.time() < token_data.get("expires_at", 0):
-                logging.info("Returning cached token")
-                return token_data.get("access_token")
-        except json.JSONDecodeError:
-            logging.warning("Token file is empty or invalid JSON. Fetching new token.")
-            pass
+def token_is_expired():
+    global token_data
+    if token_data:
+        current_time = time.time()
+        return current_time > token_data.get('expires_at', 0)
+    return True  # No token data means it's expired or non-existent
+
+def refresh_token_if_needed(client_id, client_secret, tsg_id):
+    global token_data
+    if token_is_expired():
+        obtain_api_token(client_id, client_secret, tsg_id, force_refresh=True)
+    return token_data.get("access_token"), f"Bearer {token_data.get('access_token')}"
+
+def obtain_api_token(client_id, client_secret, tsg_id, force_refresh=False):
+    global token_data
+
+    # Check if token is cached and valid
+    if not force_refresh and token_data:
+        if time.time() < token_data.get("expires_at", 0):
+            logging.info("Returning cached token")
+            return token_data.get("access_token")
 
     logging.info("Fetching new Token because it's expired or force_refresh is set")
     print("Fetching new Token because it's expired or force_refresh is set")
@@ -41,13 +49,11 @@ def obtain_api_token(client_id, client_secret, tsg_id, token_file, force_refresh
         elapsed_time = time.time() - start_time
         logging.info(f"New token fetched successfully in {elapsed_time:.2f} seconds")
 
+        # Update global token_data
         token_data = {
             "access_token": token,
             "expires_at": time.time() + expires_in - 180  # Subtract 180 seconds to account for potential delays
         }
-
-        with open(token_file, "w") as f:
-            json.dump(token_data, f)
 
         return token
     else:

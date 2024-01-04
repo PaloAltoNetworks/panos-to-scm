@@ -24,14 +24,11 @@ import xml.etree.ElementTree as ET
 import logging
 from log_module.scm_logging import setup_logging, mark_start_of_run_in_log, print_warnings_and_errors_from_log
 from parse import parse_panosxml2
-from dotenv import load_dotenv
 from api import PanApiSession  # Importing PanApiSession from your token_utils module
 from scm.post_utils import create_objects
 
 # Start Logging
 setup_logging()
-# Load env variables from .env file
-load_dotenv()
 
 def process_entries(folder_scope, entries, create_func, entry_type, session, max_workers, object_type, extra_query_params=''):
     if not entries:
@@ -81,7 +78,7 @@ def main():
     max_workers = 5 ##Careful as this can cause API rate limiting blockage by API endpoint... 3 seems to be a good rate limiter
 
     ### XML FilePath
-    xml_file_path = 'example.xml'  # Update with your XML file - current supports Panorama and Local FW configuration
+    xml_file_path = 'example-panos.xml'  # Update with your XML file - current supports Panorama and Local FW configuration
 
     # Load and parse the XML file to determine configuration type
     tree = ET.parse(xml_file_path)

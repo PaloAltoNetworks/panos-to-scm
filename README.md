@@ -8,9 +8,9 @@ python setup.py install<br />
 The credentials needed to request an access token can be defined either in a configuration located at $HOME/.panapi/config.yml.
 ```
 ---
-client_id: policy-import@123456789.iam.panserviceaccount.com<br />
-client_secret: abc12345-52b6-405c-a754-c2fffffb3561<br />
-tsg_id: 123456789<br />
+client_id: policy-import@123456789.iam.panserviceaccount.com
+client_secret: abc12345-52b6-405c-a754-c2fffffb3561
+tsg_id: 123456789
 ```
 
 ## Update the following

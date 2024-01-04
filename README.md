@@ -6,7 +6,7 @@ First, you need to install dependencies. You can do this using:<br />
 python setup.py install<br />
 
 The credentials needed to request an access token can be defined either in a configuration located at $HOME/.panapi/config.yml.
-```ruby
+```yaml
 ---
 client_id: policy-import@123456789.iam.panserviceaccount.com
 client_secret: abc12345-52b6-405c-a754-c2fffffb3561

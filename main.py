@@ -20,21 +20,20 @@ CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 """
 
 import os
-import json
-import time
 import xml.etree.ElementTree as ET
 import logging
 from log_module.scm_logging import setup_logging, mark_start_of_run_in_log, print_warnings_and_errors_from_log
-### Start Logging
-setup_logging()
 from parse import parse_panosxml2
 from dotenv import load_dotenv
-### Load env variables from .env file
-load_dotenv()
-from api.token_utils import obtain_api_token
+from api import PanApiSession  # Importing PanApiSession from your token_utils module
 from scm.post_utils import create_objects
 
-def process_entries(scope, entries, create_func, entry_type, client_id, client_secret, tsg_id, max_workers, object_type, extra_query_params=''):
+# Start Logging
+setup_logging()
+# Load env variables from .env file
+load_dotenv()
+
+def process_entries(folder_scope, entries, create_func, entry_type, session, max_workers, object_type, extra_query_params=''):
     if not entries:
         print("No entries to process.")
         return
@@ -45,7 +44,7 @@ def process_entries(scope, entries, create_func, entry_type, client_id, client_s
     created_count, exists_count, error_count = 0, 0, 0
     error_objects = []
 
-    results = create_func(scope, 0, object_type, entries, client_id, client_secret, tsg_id, max_workers=max_workers, extra_query_params=extra_query_params)
+    results = create_func(folder_scope, 0, object_type, entries, session, max_workers=max_workers, extra_query_params=extra_query_params)
     for result in results:
         if len(result) == 3:
             status, name, error_message = result
@@ -73,17 +72,16 @@ def process_entries(scope, entries, create_func, entry_type, client_id, client_s
             logging.error(f" - {error}")
 
 def main():
-    ### The below is used to pass to post_utils.py to obtain API token 
-    client_id = os.getenv('client_id')
-    client_secret = os.getenv('client_secret')
-    tsg_id = os.getenv('tsg_id')
-    token_file = "token_cache.txt" ###Current iteration uses this file.. Will update eventually
+
+    session = PanApiSession()
+    session.authenticate()
+    # print(f'Current session: {session.access_token}')
 
     ###max_workers is used for parallel processing of API request - speed things along
-    max_workers = 3 ##Careful as this can cause API rate limiting blockage by API endpoint... 3 seems to be a good rate limiter
+    max_workers = 5 ##Careful as this can cause API rate limiting blockage by API endpoint... 3 seems to be a good rate limiter
 
     ### XML FilePath
-    xml_file_path = 'example-config.xml'  # Update with your XML file - current supports Panorama and Local FW configuration
+    xml_file_path = 'ISC-0517-1315.xml'  # Update with your XML file - current supports Panorama and Local FW configuration
 
     # Load and parse the XML file to determine configuration type
     tree = ET.parse(xml_file_path)
@@ -99,16 +97,16 @@ def main():
         if config_choice == 'device-group':
             device_group_name = input("Enter the device-group name: ").strip()
             confirm_folder = input('What folder do you want the objects/policies to end up in? \n Use All for "Global" -Example "US-East-DC1" This is Case Sensitive: ').strip()
-            scope = confirm_folder
+            folder_scope = confirm_folder
             config_type = 'panorama/device-group'
         else:  # Assume shared if not device-group
             confirm_global = input("Do you want these objects/policies to end up in the Global Folder on SCM? yes/no: ").strip().lower()
-            scope = "All" if confirm_global == 'yes' else input('Enter folder name: ').strip()
+            folder_scope = "All" if confirm_global == 'yes' else input('Enter folder name: ').strip()
             config_type = 'panorama/shared'
     else:
         # Local configuration
         confirm_folder = input('What folder do you want the objects/policies to end up in? \n Use All for "Global" -Example "US-East-DC1" This is Case Sensitive: ').strip()
-        scope = confirm_folder
+        folder_scope = confirm_folder
         config_type = 'local'
     
     ### Parse XML file for different object types ####
@@ -161,47 +159,47 @@ def main():
     """
     I suggest uncommenting a few of the process_entries at a time to verify the syntax is correct, etc etc etc
     """  
-    process_entries(scope, edl_data_entries, create_objects, "EDL objects", client_id, client_secret, tsg_id, max_workers, object_type='external-dynamic-lists?', extra_query_params='')
+    process_entries(folder_scope, edl_data_entries, create_objects, "EDL objects", session, max_workers, object_type='external-dynamic-lists?', extra_query_params='')
 
-    process_entries(scope, url_categories, create_objects, "url-categories", client_id, client_secret, tsg_id, max_workers, object_type='url-categories?', extra_query_params='')
+    process_entries(folder_scope, url_categories, create_objects, "url-categories", session, max_workers, object_type='url-categories?', extra_query_params='')
 
-    process_entries(scope, url_profiles, create_objects, "url-profiles", client_id, client_secret, tsg_id, max_workers, object_type='url-access-profiles?', extra_query_params='')
+    process_entries(folder_scope, url_profiles, create_objects, "url-profiles", session, max_workers, object_type='url-access-profiles?', extra_query_params='')
 
-    process_entries(scope, vulnerability_profiles, create_objects, "vulnerability-profiles", client_id, client_secret, tsg_id, max_workers, object_type='vulnerability-protection-profiles?', extra_query_params='')
+    process_entries(folder_scope, vulnerability_profiles, create_objects, "vulnerability-profiles", session, max_workers, object_type='vulnerability-protection-profiles?', extra_query_params='')
 
-    process_entries(scope, spyware_profiles, create_objects, "anti-spyware profiles", client_id, client_secret, tsg_id, max_workers, object_type='anti-spyware-profiles?', extra_query_params='')
+    process_entries(folder_scope, spyware_profiles, create_objects, "anti-spyware profiles", session, max_workers, object_type='anti-spyware-profiles?', extra_query_params='')
 
-    process_entries(scope, virus_profiles, create_objects, "anti-virus profiles", client_id, client_secret, tsg_id, max_workers, object_type='wildfire-anti-virus-profiles?', extra_query_params='')
+    process_entries(folder_scope, virus_profiles, create_objects, "anti-virus profiles", session, max_workers, object_type='wildfire-anti-virus-profiles?', extra_query_params='')
 
-    process_entries(scope, profile_group_entries, create_objects, "profile groups", client_id, client_secret, tsg_id, max_workers, object_type='profile-groups?', extra_query_params='')
+    process_entries(folder_scope, profile_group_entries, create_objects, "profile groups", session, max_workers, object_type='profile-groups?', extra_query_params='')
 
-    process_entries(scope, tag_entries, create_objects, "tag objects", client_id, client_secret, tsg_id, max_workers, object_type='tags?', extra_query_params='')
+    process_entries(folder_scope, tag_entries, create_objects, "tag objects", session, max_workers, object_type='tags?', extra_query_params='')
     
-    process_entries(scope, address_entries, create_objects, 'address objects', client_id, client_secret, tsg_id, max_workers, object_type='addresses?', extra_query_params='')
+    process_entries(folder_scope, address_entries, create_objects, 'address objects', session, max_workers, object_type='addresses?', extra_query_params='')
     
-    process_entries(scope, address_group_entries, create_objects, "address-group objects", client_id, client_secret, tsg_id, max_workers, object_type='address-groups?', extra_query_params='')
+    process_entries(folder_scope, address_group_entries, create_objects, "address-group objects", session, max_workers, object_type='address-groups?', extra_query_params='')
     
-    process_entries(scope, service_entries, create_objects, "service objects", client_id, client_secret, tsg_id, max_workers, object_type='services?', extra_query_params='')
+    process_entries(folder_scope, service_entries, create_objects, "service objects", session, max_workers, object_type='services?', extra_query_params='')
     
-    process_entries(scope, service_group_entries, create_objects, "service-group objects", client_id, client_secret, tsg_id, max_workers, object_type='service-groups?', extra_query_params='')
+    process_entries(folder_scope, service_group_entries, create_objects, "service-group objects", session, max_workers, object_type='service-groups?', extra_query_params='')
     
-    process_entries(scope, app_filter_entries, create_objects, "application-filter objects", client_id, client_secret, tsg_id, max_workers, object_type='application-filters?', extra_query_params='')
+    process_entries(folder_scope, app_filter_entries, create_objects, "application-filter objects", session, max_workers, object_type='application-filters?', extra_query_params='')
     
-    process_entries(scope, application_group_entries, create_objects, "application-groups objects", client_id, client_secret, tsg_id, max_workers, object_type='application-groups?', extra_query_params='')    
+    process_entries(folder_scope, application_group_entries, create_objects, "application-groups objects", session, max_workers, object_type='application-groups?', extra_query_params='')    
     
-    process_entries(scope, security_rule_pre_entries, create_objects, "security rules", client_id, client_secret, tsg_id,  object_type='security-rules?', max_workers=1, extra_query_params="pre") ###### Setting max_workers=1 as security rule sequencing is important (i.e. the rules need to be in proper ordering)
+    process_entries(folder_scope, security_rule_pre_entries, create_objects, "security rules",  session, object_type='security-rules?', max_workers=1, extra_query_params="pre") ###### Setting max_workers=1 as security rule sequencing is important (i.e. the rules need to be in proper ordering)
     
     if security_rule_post_entries:
-        process_entries(scope, security_rule_post_entries, create_objects, "security rules", client_id, client_secret, tsg_id,  object_type='security-rules?', max_workers=1, extra_query_params="post") ###### Setting max_workers=1 as security rule sequencing is important (i.e. the rules need to be in proper ordering)
+        process_entries(folder_scope, security_rule_post_entries, create_objects, "security rules",  session, object_type='security-rules?', max_workers=1, extra_query_params="post") ###### Setting max_workers=1 as security rule sequencing is important (i.e. the rules need to be in proper ordering)
 
     """
     Uncomment the following NAT rule lines when ever feature added to the SCM API
     """  
 
-    # process_entries(scope, nat_rule_pre_entries, create_objects, "nat rules", client_id, client_secret, tsg_id, object_type='nat-rules?', max_workers=1, extra_query_params="pre") ###### Setting max_workers=1 as nat rule sequencing is important (i.e. the rules need to be in proper ordering)
+    # process_entries(folder_scope, nat_rule_pre_entries, create_objects, "nat rules", session, object_type='nat-rules?', max_workers=1, extra_query_params="pre") ###### Setting max_workers=1 as nat rule sequencing is important (i.e. the rules need to be in proper ordering)
 
     # if nat_rule_post_entries:
-    #     process_entries(scope, nat_rule_post_entries, create_objects, "nat rules", client_id, client_secret, tsg_id, 'nat-rules?', max_workers=1, extra_query_params="post") ###### Setting max_workers=1 as nat rule sequencing is important (i.e. the rules need to be in proper ordering)
+    #     process_entries(folder_scope, nat_rule_post_entries, create_objects, "nat rules", session, object_type='nat-rules?', max_workers=1, extra_query_params="post") ###### Setting max_workers=1 as nat rule sequencing is important (i.e. the rules need to be in proper ordering)
 
 if __name__ == "__main__":
     start_position = mark_start_of_run_in_log('debug-log.txt')

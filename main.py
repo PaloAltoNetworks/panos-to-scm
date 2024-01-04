@@ -81,7 +81,7 @@ def main():
     max_workers = 5 ##Careful as this can cause API rate limiting blockage by API endpoint... 3 seems to be a good rate limiter
 
     ### XML FilePath
-    xml_file_path = 'ISC-0517-1315.xml'  # Update with your XML file - current supports Panorama and Local FW configuration
+    xml_file_path = 'example.xml'  # Update with your XML file - current supports Panorama and Local FW configuration
 
     # Load and parse the XML file to determine configuration type
     tree = ET.parse(xml_file_path)

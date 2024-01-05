@@ -1,3 +1,21 @@
+"""
+ISC License
+
+Copyright (c) 2023 Eric Chickering <eric.chickering@gmail.com>
+
+Permission to use, copy, modify, and/or distribute this software for any
+purpose with or without fee is hereby granted, provided that the above
+copyright notice and this permission notice appear in all copies.
+
+THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION
+OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN
+CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+
+"""
 import logging
 import os
 import time
@@ -7,8 +25,11 @@ class SCMLogger:
         self.log_file = log_file
 
     def setup_logging(self):
-        logging.basicConfig(filename=self.log_file, level=logging.DEBUG, format='%(asctime)s %(levelname)s: %(message)s')
+        # Perform cleanup of old logs before setting up new logging configuration
         self.cleanup_old_logs()
+
+        # Setting up the new logging configuration
+        logging.basicConfig(filename=self.log_file, level=logging.DEBUG, format='%(asctime)s %(levelname)s: %(message)s')
 
     def mark_start_of_run_in_log(self):
         if os.path.exists(self.log_file):

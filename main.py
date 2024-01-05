@@ -210,31 +210,31 @@ def main():
     """
     I suggest commenting a few of the process_entries at a time to verify the syntax is correct, etc etc etc
     """  
-    # process_entries(api_handler, folder_scope, edl_data_entries, "EDL objects", max_workers, obj.ExternalDynamicList)
+    process_entries(api_handler, folder_scope, edl_data_entries, "EDL objects", max_workers, obj.ExternalDynamicList)
     
-    # process_entries(api_handler, folder_scope, url_categories, "URL categories", max_workers, obj.URLCategory)
+    process_entries(api_handler, folder_scope, url_categories, "URL categories", max_workers, obj.URLCategory)
 
-    # process_entries(api_handler, folder_scope, url_profiles, "URL profiles", max_workers, obj.URLAccessProfile)
+    process_entries(api_handler, folder_scope, url_profiles, "URL profiles", max_workers, obj.URLAccessProfile)
 
-    # process_entries(api_handler, folder_scope, vulnerability_profiles, "Vulnerability profiles", max_workers, obj.VulnerabilityProtectionProfile)
+    process_entries(api_handler, folder_scope, vulnerability_profiles, "Vulnerability profiles", max_workers, obj.VulnerabilityProtectionProfile)
 
-    # process_entries(api_handler, folder_scope, spyware_profiles, "Spyware profiles", max_workers, obj.AntiSpywareProfile)
+    process_entries(api_handler, folder_scope, spyware_profiles, "Spyware profiles", max_workers, obj.AntiSpywareProfile)
 
-    # process_entries(api_handler, folder_scope, virus_profiles, "WF-Antivirus profiles", max_workers, obj.WildFireAntivirusProfile)
+    process_entries(api_handler, folder_scope, virus_profiles, "WF-Antivirus profiles", max_workers, obj.WildFireAntivirusProfile)
 
-    # process_entries(api_handler, folder_scope, profile_group_entries, "Security Profile Groups", max_workers, obj.ProfileGroup)
+    process_entries(api_handler, folder_scope, profile_group_entries, "Security Profile Groups", max_workers, obj.ProfileGroup)
 
-    # process_entries(api_handler, folder_scope, tag_entries, "Tag Objects", max_workers, obj.Tag)
+    process_entries(api_handler, folder_scope, tag_entries, "Tag Objects", max_workers, obj.Tag)
     
-    # process_entries(api_handler, folder_scope, address_entries, "Address Objects", max_workers, obj.Address)
+    process_entries(api_handler, folder_scope, address_entries, "Address Objects", max_workers, obj.Address)
 
-    # process_entries(api_handler, folder_scope, address_group_entries, "Address Groups", max_workers, obj.AddressGroup)
+    process_entries(api_handler, folder_scope, address_group_entries, "Address Groups", max_workers, obj.AddressGroup)
 
-    # process_entries(api_handler, folder_scope, service_entries, "Service Objects", max_workers, obj.Service)
+    process_entries(api_handler, folder_scope, service_entries, "Service Objects", max_workers, obj.Service)
 
-    # process_entries(api_handler, folder_scope, service_group_entries, "Service Groups", max_workers, obj.ServiceGroup)
+    process_entries(api_handler, folder_scope, service_group_entries, "Service Groups", max_workers, obj.ServiceGroup)
 
-    # process_entries(api_handler, folder_scope, app_filter_entries, "Application Filters", max_workers, obj.ApplicationFilter)
+    process_entries(api_handler, folder_scope, app_filter_entries, "Application Filters", max_workers, obj.ApplicationFilter)
 
     process_entries(api_handler, folder_scope, application_group_entries, "Application Groups", max_workers, obj.ApplicationGroup)
 

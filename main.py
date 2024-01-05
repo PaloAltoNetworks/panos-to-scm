@@ -128,8 +128,7 @@ def main():
     api_handler = PanApiHandler(session)
 
     ### XML FilePath
-    xml_file_path = 'ISC-0517-1315.xml'  # Update with your XML file - current supports Panorama and Local FW configuration
-    # xml_file_path = 'pa-440.xml'  # Update with your XML file - current supports Panorama and Local FW configuration
+    xml_file_path = 'pa-440.xml'  # Update with your XML file - current supports Panorama and Local FW configuration
 
     # Load and parse the XML file to determine configuration type
     tree = ET.parse(xml_file_path)

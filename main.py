@@ -1,4 +1,4 @@
-# main.py
+# /project/main.py
 
 """
 ISC License
@@ -19,18 +19,28 @@ CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
 """
 
-import os
+import time
 import xml.etree.ElementTree as ET
 import logging
-from log_module.scm_logging import setup_logging, mark_start_of_run_in_log, print_warnings_and_errors_from_log
+from concurrent.futures import ThreadPoolExecutor
+from log_module import SCMLogger
 from parse import parse_panosxml2
-from api import PanApiSession  # Importing PanApiSession from your token_utils module
-from scm.post_utils import create_objects
+from api import PanApiSession
+from scm import PanApiHandler
+import scm.obj as obj
 
+# Setup SCMLogger
+logger = SCMLogger()
 # Start Logging
-setup_logging()
+logger.setup_logging()
+# Mark the start of the run in the log
+start_position = logger.mark_start_of_run_in_log()
 
-def process_entries(folder_scope, entries, create_func, entry_type, session, max_workers, object_type, extra_query_params=''):
+###max_workers is used for parallel processing of API request - speed things along
+max_workers = 3 ##Careful as this can cause API rate limiting blockage by API endpoint... 3 seems to be a good rate limiter
+
+
+def process_entries(api_handler, folder_scope, entries, entry_type, max_workers, obj_class, extra_query_params=''):
     if not entries:
         print("No entries to process.")
         return
@@ -41,7 +51,8 @@ def process_entries(folder_scope, entries, create_func, entry_type, session, max
     created_count, exists_count, error_count = 0, 0, 0
     error_objects = []
 
-    results = create_func(folder_scope, 0, object_type, entries, session, max_workers=max_workers, extra_query_params=extra_query_params)
+    endpoint = obj_class.get_endpoint() + extra_query_params
+    results = api_handler.create_objects(folder_scope, 0, endpoint, entries, max_workers)
     for result in results:
         if len(result) == 3:
             status, name, error_message = result
@@ -67,18 +78,58 @@ def process_entries(folder_scope, entries, create_func, entry_type, session, max
         for error in error_objects:
             print(f" - {error}")
             logging.error(f" - {error}")
+    # Return the count of processed entries
+    return created_count, exists_count, error_count
+
+def rearrange_rules(security_rule_obj, folder_scope, original_rules, current_rules, max_workers=5):
+    current_rule_ids = {rule['name']: rule['id'] for rule in current_rules}
+    current_order = [rule['name'] for rule in current_rules]
+    desired_order = [rule['name'] for rule in original_rules if rule['name'] in current_rule_ids]
+
+    max_attempts = 5
+    attempts = 0
+
+    while current_order != desired_order and attempts < max_attempts:
+        attempts += 1
+        moves = []
+
+        for i, rule_name in enumerate(desired_order[:-1]):
+            if current_order.index(rule_name) > current_order.index(desired_order[i + 1]):
+                rule_id = current_rule_ids[rule_name]
+                target_rule_id = current_rule_ids[desired_order[i + 1]]
+                moves.append((rule_id, target_rule_id))
+                print(f"Prepared move: Rule '{rule_name}' (ID: {rule_id}) before '{desired_order[i + 1]}' (ID: {target_rule_id})")
+
+        with ThreadPoolExecutor(max_workers=max_workers) as executor:
+            futures = [executor.submit(security_rule_obj.move_rule, rule_id, folder_scope, "before", target_rule_id) for rule_id, target_rule_id in moves]
+            for future in futures:
+                future.result()  # Wait for each move to complete
+
+        if moves:
+            # Only fetch current rules if there were moves made
+            current_rules = security_rule_obj.list_security_rules(folder_scope, "pre")
+            current_order = [rule['name'] for rule in current_rules if rule['name'] != 'default']
+            print(f"Updated rule order after attempt {attempts}: {current_order}")
+            logging.info(f"Updated rule order after attempt {attempts}: {current_order}")
+
+    if attempts >= max_attempts:
+        print("Reached maximum attempts to reorder rules. Exiting loop.")
+        logging.warning("Reached maximum attempts to reorder rules. Exiting loop.")
+        print("Final current order:", current_order)
+        print("Desired order:", desired_order)
 
 def main():
+    ##time this script
+    start_time = time.time()  # Start timing
 
+    ##Authenticate
     session = PanApiSession()
     session.authenticate()
-    # print(f'Current session: {session.access_token}')
-
-    ###max_workers is used for parallel processing of API request - speed things along
-    max_workers = 5 ##Careful as this can cause API rate limiting blockage by API endpoint... 3 seems to be a good rate limiter
+    api_handler = PanApiHandler(session)
 
     ### XML FilePath
-    xml_file_path = 'example-panos.xml'  # Update with your XML file - current supports Panorama and Local FW configuration
+    xml_file_path = 'ISC-0517-1315.xml'  # Update with your XML file - current supports Panorama and Local FW configuration
+    # xml_file_path = 'pa-440.xml'  # Update with your XML file - current supports Panorama and Local FW configuration
 
     # Load and parse the XML file to determine configuration type
     tree = ET.parse(xml_file_path)
@@ -140,6 +191,7 @@ def main():
     application_group_entries = parse_panosxml2.parse_application_group_entries(xml_file_path, config_type, device_group_name)
     
     security_rule_pre_entries = parse_panosxml2.parse_security_pre_rules_entries(xml_file_path, config_type, device_group_name)
+    # print(security_rule_pre_entries)
     
     security_rule_post_entries = []
     if config_type == 'panorama/device-group':
@@ -153,41 +205,97 @@ def main():
     
     ### Process each type of entry in sequence
 
+    # Start the timer for object creation
+    start_time_objects = time.time()
+
     """
-    I suggest uncommenting a few of the process_entries at a time to verify the syntax is correct, etc etc etc
+    I suggest commenting a few of the process_entries at a time to verify the syntax is correct, etc etc etc
     """  
-    process_entries(folder_scope, edl_data_entries, create_objects, "EDL objects", session, max_workers, object_type='external-dynamic-lists?', extra_query_params='')
+    # process_entries(api_handler, folder_scope, edl_data_entries, "EDL objects", max_workers, obj.ExternalDynamicList)
+    
+    # process_entries(api_handler, folder_scope, url_categories, "URL categories", max_workers, obj.URLCategory)
 
-    process_entries(folder_scope, url_categories, create_objects, "url-categories", session, max_workers, object_type='url-categories?', extra_query_params='')
+    # process_entries(api_handler, folder_scope, url_profiles, "URL profiles", max_workers, obj.URLAccessProfile)
 
-    process_entries(folder_scope, url_profiles, create_objects, "url-profiles", session, max_workers, object_type='url-access-profiles?', extra_query_params='')
+    # process_entries(api_handler, folder_scope, vulnerability_profiles, "Vulnerability profiles", max_workers, obj.VulnerabilityProtectionProfile)
 
-    process_entries(folder_scope, vulnerability_profiles, create_objects, "vulnerability-profiles", session, max_workers, object_type='vulnerability-protection-profiles?', extra_query_params='')
+    # process_entries(api_handler, folder_scope, spyware_profiles, "Spyware profiles", max_workers, obj.AntiSpywareProfile)
 
-    process_entries(folder_scope, spyware_profiles, create_objects, "anti-spyware profiles", session, max_workers, object_type='anti-spyware-profiles?', extra_query_params='')
+    # process_entries(api_handler, folder_scope, virus_profiles, "WF-Antivirus profiles", max_workers, obj.WildFireAntivirusProfile)
 
-    process_entries(folder_scope, virus_profiles, create_objects, "anti-virus profiles", session, max_workers, object_type='wildfire-anti-virus-profiles?', extra_query_params='')
+    # process_entries(api_handler, folder_scope, profile_group_entries, "Security Profile Groups", max_workers, obj.ProfileGroup)
 
-    process_entries(folder_scope, profile_group_entries, create_objects, "profile groups", session, max_workers, object_type='profile-groups?', extra_query_params='')
+    # process_entries(api_handler, folder_scope, tag_entries, "Tag Objects", max_workers, obj.Tag)
+    
+    # process_entries(api_handler, folder_scope, address_entries, "Address Objects", max_workers, obj.Address)
 
-    process_entries(folder_scope, tag_entries, create_objects, "tag objects", session, max_workers, object_type='tags?', extra_query_params='')
-    
-    process_entries(folder_scope, address_entries, create_objects, 'address objects', session, max_workers, object_type='addresses?', extra_query_params='')
-    
-    process_entries(folder_scope, address_group_entries, create_objects, "address-group objects", session, max_workers, object_type='address-groups?', extra_query_params='')
-    
-    process_entries(folder_scope, service_entries, create_objects, "service objects", session, max_workers, object_type='services?', extra_query_params='')
-    
-    process_entries(folder_scope, service_group_entries, create_objects, "service-group objects", session, max_workers, object_type='service-groups?', extra_query_params='')
-    
-    process_entries(folder_scope, app_filter_entries, create_objects, "application-filter objects", session, max_workers, object_type='application-filters?', extra_query_params='')
-    
-    process_entries(folder_scope, application_group_entries, create_objects, "application-groups objects", session, max_workers, object_type='application-groups?', extra_query_params='')    
-    
-    process_entries(folder_scope, security_rule_pre_entries, create_objects, "security rules",  session, object_type='security-rules?', max_workers=1, extra_query_params="pre") ###### Setting max_workers=1 as security rule sequencing is important (i.e. the rules need to be in proper ordering)
-    
-    if security_rule_post_entries:
-        process_entries(folder_scope, security_rule_post_entries, create_objects, "security rules",  session, object_type='security-rules?', max_workers=1, extra_query_params="post") ###### Setting max_workers=1 as security rule sequencing is important (i.e. the rules need to be in proper ordering)
+    # process_entries(api_handler, folder_scope, address_group_entries, "Address Groups", max_workers, obj.AddressGroup)
+
+    # process_entries(api_handler, folder_scope, service_entries, "Service Objects", max_workers, obj.Service)
+
+    # process_entries(api_handler, folder_scope, service_group_entries, "Service Groups", max_workers, obj.ServiceGroup)
+
+    # process_entries(api_handler, folder_scope, app_filter_entries, "Application Filters", max_workers, obj.ApplicationFilter)
+
+    process_entries(api_handler, folder_scope, application_group_entries, "Application Groups", max_workers, obj.ApplicationGroup)
+
+    # Retrieve current security rules before creating new ones
+    security_rule_obj = obj.SecurityRule(api_handler)
+    current_rules_pre = security_rule_obj.list_security_rules(folder_scope, "pre")
+    print("Initial API Call Response:", current_rules_pre)
+
+    # Extract rule names from current rules data
+    current_rule_names_pre = set(rule['name'] for rule in current_rules_pre)
+
+    # Identify new rules that need to be created
+    rules_to_create_pre = [rule for rule in security_rule_pre_entries if rule['name'] not in current_rule_names_pre]
+
+    # Process new security rules for creation
+    if rules_to_create_pre:
+        process_entries(api_handler, folder_scope, rules_to_create_pre, "security rules", max_workers, obj.SecurityRule, extra_query_params="?position=pre")
+
+    # Print the time taken for object creation
+    end_time_objects = time.time()
+    print(f"Time taken for creating objects: {end_time_objects - start_time_objects:.2f} seconds\n")
+
+    # Initialize a variable to track if the rules are in the correct order
+    rules_in_correct_order = False
+    last_known_order = None  # To track changes in rule order
+
+    # Start the timer for rule reordering
+    start_time_reordering = time.time()
+
+    while not rules_in_correct_order:
+        # Retrieve current security rules including newly created ones
+        current_rules_pre_updated = security_rule_obj.list_security_rules(folder_scope, "pre")
+
+        # Create a list of rule names for the current order, excluding 'default'
+        current_order = [rule['name'] for rule in current_rules_pre_updated if rule['name'] != 'default']
+        
+        # Check for changes in the order
+        if current_order == last_known_order:
+            print("No change in rule order detected. Exiting reordering process.")
+            break
+        last_known_order = current_order
+
+        print(f'Current API order: {current_order}')
+
+        # Ensure newly created rules are also considered in desired order
+        desired_order = [rule['name'] for rule in security_rule_pre_entries if rule['name'] != 'default']
+        print(f'Desired order: {desired_order}')
+
+        if current_order != desired_order:
+            print("Reordering rules now..")
+            rearrange_rules(security_rule_obj, folder_scope, security_rule_pre_entries, current_rules_pre_updated, max_workers)
+        else:
+            rules_in_correct_order = True
+
+    # if security_rule_post_entries:
+    #     process_entries(folder_scope, security_rule_post_entries, create_objects, "security rules",  session, object_type='security-rules?', max_workers=1, extra_query_params="post") ###### Setting max_workers=1 as security rule sequencing is important (i.e. the rules need to be in proper ordering)
+
+    # Print the time taken for reordering
+    end_time_reordering = time.time()
+    print(f"Time taken for reordering rules: {end_time_reordering - start_time_reordering:.2f} seconds")
 
     """
     Uncomment the following NAT rule lines when ever feature added to the SCM API
@@ -198,8 +306,13 @@ def main():
     # if nat_rule_post_entries:
     #     process_entries(folder_scope, nat_rule_post_entries, create_objects, "nat rules", session, object_type='nat-rules?', max_workers=1, extra_query_params="post") ###### Setting max_workers=1 as nat rule sequencing is important (i.e. the rules need to be in proper ordering)
 
+    end_time = time.time()  # End timing
+    total_time = end_time - start_time
+    print(f"Script execution time: {total_time:.2f} seconds")
+
+
 if __name__ == "__main__":
-    start_position = mark_start_of_run_in_log('debug-log.txt')
+    start_position = logger.mark_start_of_run_in_log()
     main()
-    print_warnings_and_errors_from_log('debug-log.txt', start_position)
+    logger.print_warnings_and_errors_from_log(start_position)
     print("Script finished! Check the terminal for warnings and errors.\nCheck debug-log.txt for further debug logs")

@@ -136,37 +136,40 @@ class PanApiHandler:
         """ Delete an object via the API. """
         # Similar logic to get_object, but using session.delete
 
-    def rearrange_rules(self, folder_scope, original_rules, current_rules, max_workers=5):
-        current_rule_ids = {rule['name']: rule['id'] for rule in current_rules}
-        current_order = [rule['name'] for rule in current_rules]
-        desired_order = [rule['name'] for rule in original_rules if rule['name'] in current_rule_ids]
+    '''
+    Will move this here probably
+    '''
+    # def rearrange_rules(self, folder_scope, original_rules, current_rules, max_workers=5):
+    #     current_rule_ids = {rule['name']: rule['id'] for rule in current_rules}
+    #     current_order = [rule['name'] for rule in current_rules]
+    #     desired_order = [rule['name'] for rule in original_rules if rule['name'] in current_rule_ids]
 
-        max_attempts = 25
-        attempts = 0
+    #     max_attempts = 25
+    #     attempts = 0
 
-        while current_order != desired_order and attempts < max_attempts:
-            attempts += 1
-            moves = []
+    #     while current_order != desired_order and attempts < max_attempts:
+    #         attempts += 1
+    #         moves = []
 
-            for i, rule_name in enumerate(desired_order[:-1]):
-                if current_order.index(rule_name) > current_order.index(desired_order[i + 1]):
-                    rule_id = current_rule_ids[rule_name]
-                    target_rule_id = current_rule_ids[desired_order[i + 1]]
-                    moves.append((rule_id, target_rule_id))
-                    print(f"Prepared move: Rule '{rule_name}' (ID: {rule_id}) before '{desired_order[i + 1]}' (ID: {target_rule_id})")
+    #         for i, rule_name in enumerate(desired_order[:-1]):
+    #             if current_order.index(rule_name) > current_order.index(desired_order[i + 1]):
+    #                 rule_id = current_rule_ids[rule_name]
+    #                 target_rule_id = current_rule_ids[desired_order[i + 1]]
+    #                 moves.append((rule_id, target_rule_id))
+    #                 print(f"Prepared move: Rule '{rule_name}' (ID: {rule_id}) before '{desired_order[i + 1]}' (ID: {target_rule_id})")
 
-            with ThreadPoolExecutor(max_workers=max_workers) as executor:
-                futures = [executor.submit(self.move_rule, rule_id, folder_scope, "before", target_rule_id) for rule_id, target_rule_id in moves]
-                for future in futures:
-                    future.result()  # Wait for each move to complete
+    #         with ThreadPoolExecutor(max_workers=max_workers) as executor:
+    #             futures = [executor.submit(self.move_rule, rule_id, folder_scope, "before", target_rule_id) for rule_id, target_rule_id in moves]
+    #             for future in futures:
+    #                 future.result()  # Wait for each move to complete
 
-            if moves:
-                # Fetch current rules to see the result of the moves
-                updated_rules = self.list_security_rules(folder_scope, "pre")
-                current_order = [rule['name'] for rule in updated_rules if rule['name'] != 'default']
-                print(f"Updated rule order after attempt {attempts}: {current_order}")
+    #         if moves:
+    #             # Fetch current rules to see the result of the moves
+    #             updated_rules = self.list_security_rules(folder_scope, "pre")
+    #             current_order = [rule['name'] for rule in updated_rules if rule['name'] != 'default']
+    #             print(f"Updated rule order after attempt {attempts}: {current_order}")
 
-        if attempts >= max_attempts:
-            print("Reached maximum attempts to reorder rules. Exiting loop.")
-            print("Final current order:", current_order)
-            print("Desired order:", desired_order)
+    #     if attempts >= max_attempts:
+    #         print("Reached maximum attempts to reorder rules. Exiting loop.")
+    #         print("Final current order:", current_order)
+    #         print("Desired order:", desired_order)

@@ -3,9 +3,13 @@ Migrate Panorama or Local PANOS config(FROM XML file) to Strata Cloud Manager
 
 # Requirements
 First, you need to install dependencies. You can do this using:<br />
-python setup.py install<br />
+"pip install ."<br />
 
-The credentials needed to request an access token can be defined either in a configuration located at $HOME/.panapi/config.yml.
+The credentials needed to request an access token can be defined in a configuration located at "$HOME/.panapi/config.yml"<br />
+This is hidden folder in your current home directory:<br />
+Windows would be C:\users\<username>\.panapi\config.yml<br />
+Macos /Users/<username>/.panapi/config.yml<br />
+Linux /home/<username>/.panapi<br />
 ```yaml
 ---
 client_id: policy-import@123456789.iam.panserviceaccount.com

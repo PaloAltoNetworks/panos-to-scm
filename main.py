@@ -36,9 +36,6 @@ logger.setup_logging()
 # Mark the start of the run in the log
 start_position = logger.mark_start_of_run_in_log()
 
-###max_workers is used for parallel processing of API request - speed things along
-max_workers = 3 ##Careful as this can cause API rate limiting blockage by API endpoint... 3 seems to be a good rate limiter
-
 
 def process_entries(api_handler, folder_scope, entries, entry_type, max_workers, obj_class, extra_query_params=''):
     if not entries:
@@ -81,12 +78,12 @@ def process_entries(api_handler, folder_scope, entries, entry_type, max_workers,
     # Return the count of processed entries
     return created_count, exists_count, error_count
 
-def rearrange_rules(security_rule_obj, folder_scope, original_rules, current_rules, max_workers=5):
+def rearrange_rules(security_rule_obj, folder_scope, original_rules, current_rules, max_workers):
     current_rule_ids = {rule['name']: rule['id'] for rule in current_rules}
     current_order = [rule['name'] for rule in current_rules]
     desired_order = [rule['name'] for rule in original_rules if rule['name'] in current_rule_ids]
 
-    max_attempts = 5
+    max_attempts = 8
     attempts = 0
 
     while current_order != desired_order and attempts < max_attempts:
@@ -100,7 +97,8 @@ def rearrange_rules(security_rule_obj, folder_scope, original_rules, current_rul
                 moves.append((rule_id, target_rule_id))
                 print(f"Prepared move: Rule '{rule_name}' (ID: {rule_id}) before '{desired_order[i + 1]}' (ID: {target_rule_id})")
 
-        with ThreadPoolExecutor(max_workers=max_workers) as executor:
+        with ThreadPoolExecutor(max_workers) as executor:
+            print(f'Currently utilizing {int(max_workers)} wokers.')
             futures = [executor.submit(security_rule_obj.move_rule, rule_id, folder_scope, "before", target_rule_id) for rule_id, target_rule_id in moves]
             for future in futures:
                 future.result()  # Wait for each move to complete
@@ -128,7 +126,7 @@ def main():
     api_handler = PanApiHandler(session)
 
     ### XML FilePath
-    xml_file_path = 'pa-440.xml'  # Update with your XML file - current supports Panorama and Local FW configuration
+    xml_file_path = 'example.xml'  # Update with your XML file - current supports Panorama and Local FW configuration
 
     # Load and parse the XML file to determine configuration type
     tree = ET.parse(xml_file_path)
@@ -210,6 +208,10 @@ def main():
     """
     I suggest commenting a few of the process_entries at a time to verify the syntax is correct, etc etc etc
     """  
+    
+    '''max_workers is used for parallel processing of API request - speed things along'''
+    max_workers = 3 ##Careful as this can cause API rate limiting blockage by API endpoint... 3 seems to be a good rate limiter for objects
+
     process_entries(api_handler, folder_scope, edl_data_entries, "EDL objects", max_workers, obj.ExternalDynamicList)
     
     process_entries(api_handler, folder_scope, url_categories, "URL categories", max_workers, obj.URLCategory)
@@ -241,7 +243,7 @@ def main():
     # Retrieve current security rules before creating new ones
     security_rule_obj = obj.SecurityRule(api_handler)
     current_rules_pre = security_rule_obj.list_security_rules(folder_scope, "pre")
-    print("Initial API Call Response:", current_rules_pre)
+    # print("Initial API Call Response:", current_rules_pre)
 
     # Extract rule names from current rules data
     current_rule_names_pre = set(rule['name'] for rule in current_rules_pre)
@@ -250,6 +252,9 @@ def main():
     rules_to_create_pre = [rule for rule in security_rule_pre_entries if rule['name'] not in current_rule_names_pre]
 
     # Process new security rules for creation
+    '''max_workers is used for parallel processing of API request - speed things along'''
+    max_workers = 8 ##Careful as this can cause API rate limiting blockage by API endpoint... 8 seems to be a good rate limiter for security policies
+
     if rules_to_create_pre:
         process_entries(api_handler, folder_scope, rules_to_create_pre, "security rules", max_workers, obj.SecurityRule, extra_query_params="?position=pre")
 
@@ -277,12 +282,14 @@ def main():
             break
         last_known_order = current_order
 
-        print(f'Current API order: {current_order}')
+        # print(f'Current API order: {current_order}')
 
         # Ensure newly created rules are also considered in desired order
         desired_order = [rule['name'] for rule in security_rule_pre_entries if rule['name'] != 'default']
-        print(f'Desired order: {desired_order}')
+        # print(f'Desired order: {desired_order}')
 
+        '''max_workers is used for parallel processing of API request - speed things along'''
+        max_workers = 5 ##Careful as this can cause API rate limiting blockage by API endpoint... 5 seems to be a rate for re-ordering security policies
         if current_order != desired_order:
             print("Reordering rules now..")
             rearrange_rules(security_rule_obj, folder_scope, security_rule_pre_entries, current_rules_pre_updated, max_workers)

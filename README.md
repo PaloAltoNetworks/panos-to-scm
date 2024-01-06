@@ -9,7 +9,7 @@ The credentials needed to request an access token can be defined in a configurat
 This is hidden folder in your current home directory:<br />
 Windows would be C:\users\<username>\.panapi\config.yml<br />
 Macos /Users/<username>/.panapi/config.yml<br />
-Linux /home\/<username>\/.panapi<br />
+Linux /home/<username>\/.panapi<br />
 ```yaml
 ---
 client_id: policy-import@123456789.iam.panserviceaccount.com

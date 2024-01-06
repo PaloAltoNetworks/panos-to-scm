@@ -6,10 +6,11 @@ First, you need to install dependencies. You can do this using:<br />
 "pip install ."<br />
 
 The credentials needed to request an access token can be defined in a configuration located at "$HOME/.panapi/config.yml"<br />
-This is hidden folder in your current home directory:<br />
-Windows would be C:\users\<username>\.panapi\config.yml<br />
-Macos /Users/<username>/.panapi/config.yml<br />
-Linux /home/<username>\/.panapi<br />
+This is a hidden folder in your current home directory:<br />
+Windows: `C:\users\<username>\.panapi\config.yml`<br />
+MacOS: `/Users/<username>/.panapi/config.yml`<br />
+Linux: `/home/<username>/.panapi/config.yml`<br />
+
 ```yaml
 ---
 client_id: policy-import@123456789.iam.panserviceaccount.com

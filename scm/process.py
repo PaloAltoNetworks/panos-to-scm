@@ -22,6 +22,7 @@ CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 from scm import PanApiHandler
 from concurrent.futures import ThreadPoolExecutor
 import logging
+import time
 import xml.etree.ElementTree as ET
 
 class Processor:
@@ -33,6 +34,8 @@ class Processor:
         if not entries:
             print("No entries to process.")
             return
+        # Start the timer for object creation
+        start_time_objects = time.time()
 
         initial_entry_count = len(entries)
         print(f"Processing {len(entries)} {entry_type} entries in parallel.")
@@ -68,6 +71,9 @@ class Processor:
                 print(f" - {error}")
                 logging.error(f" - {error}")
         # Return the count of processed entries
+        # Print the time taken for object creation
+        end_time_objects = time.time()
+        print(f"Time taken for creating {entry_type}: {end_time_objects - start_time_objects:.2f} seconds\n")
         return created_count, exists_count, error_count
 
     def reorder_rules(self, security_rule_obj, folder_scope, original_rules, current_rules):
@@ -134,3 +140,29 @@ class Processor:
             config_type = 'local'
 
         return folder_scope, config_type, device_group_name
+
+    def check_and_reorder_rules(self, security_rule_obj, folder_scope, original_rules):
+        rules_in_correct_order = False
+        last_known_order = None
+        start_time_reordering = time.time()
+
+        while not rules_in_correct_order:
+            current_rules_pre_updated = security_rule_obj.list_security_rules(folder_scope, "pre")
+            current_order = [rule['name'] for rule in current_rules_pre_updated if rule['name'] != 'default']
+
+            if current_order == last_known_order:
+                print("No change in rule order detected. Exiting reordering process.")
+                break
+            last_known_order = current_order
+
+            desired_order = [rule['name'] for rule in original_rules if rule['name'] != 'default']
+
+            if current_order != desired_order:
+                print("Reordering rules now..")
+                self.reorder_rules(security_rule_obj, folder_scope, original_rules, current_rules_pre_updated)
+            else:
+                rules_in_correct_order = True
+                end_time_objects = time.time()
+        end_time_reordering = time.time()
+        print(f"Time taken for reordering rules: {end_time_reordering - start_time_reordering:.2f} seconds")
+        return last_known_order

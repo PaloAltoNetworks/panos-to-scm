@@ -1,5 +1,7 @@
 # /project/scm/obj.py
 '''
+Most of this came from PANAPI and has been modified - https://github.com/PaloAltoNetworks/panapi/
+'''
 ISC License
 
 Copyright (c) 2022, Palo Alto Networks Inc.

@@ -51,7 +51,9 @@ def main():
     conf = Processor(api_handler, max_workers)
 
     ### XML FilePath
-    xml_file_path = 'example.xml'  # Update with your XML file - current supports Panorama and Local FW configuration
+    # xml_file_path = 'ISC-0517-1315.xml'  # Update with your XML file - current supports Panorama and Local FW configuration
+    # xml_file_path = 'policy-import2023.xml'  # Update with your XML file - current supports Panorama and Local FW configuration
+    xml_file_path = 'pa-440.xml'  # Update with your XML file - current supports Panorama and Local FW configuration
 
     # Use Processor class to parse XML and determine configuration
     folder_scope, config_type, device_group_name = conf.parse_config_and_set_scope(xml_file_path)
@@ -144,7 +146,8 @@ def main():
     # Process new security rules for creation
     if rules_to_create_pre:
         '''max_workers is used for parallel processing of API request - speed things along'''
-        max_workers = 5 ##Careful as this can cause API rate limiting blockage by API endpoint... 5 seems to be a rate for posting security policies        
+        max_workers = 5 ###Careful as this can cause API rate limiting blockage by API endpoint... 5 seems to be a rate for posting security policies###
+        conf = Processor(api_handler, max_workers)
         conf.post_entries(folder_scope, rules_to_create_pre, "security rules", obj.SecurityRule, extra_query_params="?position=pre")
     else:
         message = f"No new pre-rules to create from XML: {xml_file_path}"
@@ -155,7 +158,9 @@ def main():
         logging.info(message)
 
     # Track and resolve if the rules are in the correct order
-    conf.check_and_reorder_rules(security_rule_obj, folder_scope, security_rule_pre_entries)
+    max_workers = 5 ###Careful as this can cause API rate limiting blockage by API endpoint... 5 seems to be a rate for re-ordering security policies###
+    conf = Processor(api_handler, max_workers)
+    conf.check_and_reorder_rules(security_rule_obj, folder_scope, security_rule_pre_entries, position='pre')
 
     # if security_rule_post_entries:
     #     post_entries(folder_scope, security_rule_post_entries, create_objects, "security rules",  session, object_type='security-rules?', max_workers=1, extra_query_params="post") ###### Setting max_workers=1 as security rule sequencing is important (i.e. the rules need to be in proper ordering)

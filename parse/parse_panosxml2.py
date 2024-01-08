@@ -1,4 +1,4 @@
-# parse_panosxml.py
+#/project/parse/parse_panosxml2.py
 
 """
 ISC License
@@ -40,7 +40,7 @@ def etree_to_dict(element):
 
     return result
 
-def parse_zones(file_path, config_type, device_group_name=None):
+def zones(file_path, config_type, device_group_name=None):
     tree = ET.parse(file_path)
     root = tree.getroot()
 
@@ -74,7 +74,7 @@ def parse_zones(file_path, config_type, device_group_name=None):
 
     return zone_entries
 
-def parse_url_category_entries(file_path, config_type, device_group_name=None):
+def url_category_entries(file_path, config_type, device_group_name=None):
     tree = ET.parse(file_path)
     root = tree.getroot()
 
@@ -106,7 +106,7 @@ def parse_url_category_entries(file_path, config_type, device_group_name=None):
 
     return url_category
 
-def parse_url_profiles_entries(file_path, config_type, device_group_name=None):
+def url_profiles_entries(file_path, config_type, device_group_name=None):
     tree = ET.parse(file_path)
     root = tree.getroot()
 
@@ -142,7 +142,7 @@ def parse_url_profiles_entries(file_path, config_type, device_group_name=None):
 
     return url_profiles
 
-def parse_vulnerability_profiles_entries(file_path, config_type, device_group_name=None):
+def vulnerability_profiles_entries(file_path, config_type, device_group_name=None):
     tree = ET.parse(file_path)
     root = tree.getroot()
 
@@ -207,7 +207,7 @@ def parse_vulnerability_profiles_entries(file_path, config_type, device_group_na
 
     return vulnerability_profiles
 
-def parse_spyware_profiles_entries(file_path, config_type, device_group_name=None):
+def spyware_profiles_entries(file_path, config_type, device_group_name=None):
     tree = ET.parse(file_path)
     root = tree.getroot()
 
@@ -274,7 +274,7 @@ def parse_spyware_profiles_entries(file_path, config_type, device_group_name=Non
 
     return spyware_profiles
 
-def parse_antivirus_profiles_entries(file_path, config_type, device_group_name=None):
+def antivirus_profiles_entries(file_path, config_type, device_group_name=None):
     tree = ET.parse(file_path)
     root = tree.getroot()
 
@@ -333,7 +333,7 @@ def parse_antivirus_profiles_entries(file_path, config_type, device_group_name=N
 
     return antivirus_profiles
 
-def parse_profile_group_entries(file_path, config_type, device_group_name=None):
+def profile_group_entries(file_path, config_type, device_group_name=None):
     tree = ET.parse(file_path)
     root = tree.getroot()
 
@@ -419,7 +419,7 @@ def map_color_code_to_color(color_code):
         }
     return colorCodes.get(color_code)
 
-def parse_tag_entries(file_path, config_type, device_group_name=None):
+def tag_entries(file_path, config_type, device_group_name=None):
     tree = ET.parse(file_path)
     root = tree.getroot()
 
@@ -444,7 +444,7 @@ def parse_tag_entries(file_path, config_type, device_group_name=None):
 
     return tags
 
-def parse_address_entries(file_path, config_type, device_group_name=None):
+def address_entries(file_path, config_type, device_group_name=None):
     tree = ET.parse(file_path)
     root = tree.getroot()
 
@@ -480,7 +480,7 @@ def parse_address_entries(file_path, config_type, device_group_name=None):
 
     return addresses
 
-def parse_address_group_entries(file_path, config_type, device_group_name=None):
+def address_group_entries(file_path, config_type, device_group_name=None):
     tree = ET.parse(file_path)
     root = tree.getroot()
 
@@ -515,7 +515,7 @@ def parse_address_group_entries(file_path, config_type, device_group_name=None):
 
     return address_group
 
-def parse_service_entries(file_path, config_type, device_group_name=None):
+def service_entries(file_path, config_type, device_group_name=None):
     tree = ET.parse(file_path)
     root = tree.getroot()
 
@@ -563,7 +563,7 @@ def parse_service_entries(file_path, config_type, device_group_name=None):
 
     return service_entries
 
-def parse_service_group_entries(file_path, config_type, device_group_name=None):
+def service_group_entries(file_path, config_type, device_group_name=None):
     tree = ET.parse(file_path)
     root = tree.getroot()
 
@@ -595,7 +595,7 @@ def parse_service_group_entries(file_path, config_type, device_group_name=None):
 
     return service_groups
 
-def parse_edl_entries(file_path, config_type, device_group_name=None):
+def edl_entries(file_path, config_type, device_group_name=None):
     tree = ET.parse(file_path)
     root = tree.getroot()
 
@@ -638,7 +638,7 @@ def parse_edl_entries(file_path, config_type, device_group_name=None):
 
     return edl_entries
 
-def parse_application_filter_entries(file_path, config_type, device_group_name=None):
+def application_filter_entries(file_path, config_type, device_group_name=None):
     tree = ET.parse(file_path)
     root = tree.getroot()
 
@@ -674,7 +674,7 @@ def parse_application_filter_entries(file_path, config_type, device_group_name=N
 
     return application_filters
 
-def parse_application_group_entries(file_path, config_type, device_group_name=None):
+def application_group_entries(file_path, config_type, device_group_name=None):
     tree = ET.parse(file_path)
     root = tree.getroot()
 
@@ -700,7 +700,7 @@ def parse_application_group_entries(file_path, config_type, device_group_name=No
 
     return application_groups
 
-def parse_security_pre_rules_entries(file_path, config_type, device_group_name=None):
+def security_pre_rules_entries(file_path, config_type, device_group_name=None):
     tree = ET.parse(file_path)
     root = tree.getroot()
 
@@ -763,7 +763,7 @@ def parse_security_pre_rules_entries(file_path, config_type, device_group_name=N
 
     return security_rules
 
-def parse_security_post_rules_entries(file_path, config_type, device_group_name=None):
+def security_post_rules_entries(file_path, config_type, device_group_name=None):
     tree = ET.parse(file_path)
     root = tree.getroot()
 
@@ -825,7 +825,7 @@ def parse_security_post_rules_entries(file_path, config_type, device_group_name=
 
     return security_rules
 
-def parse_nat_pre_rules_entries(file_path, config_type, device_group_name=None):
+def nat_pre_rules_entries(file_path, config_type, device_group_name=None):
     tree = ET.parse(file_path)
     root = tree.getroot()
 
@@ -873,7 +873,7 @@ def parse_nat_pre_rules_entries(file_path, config_type, device_group_name=None):
 
     return nat_rules
 
-def parse_nat_post_rules_entries(file_path, config_type, device_group_name=None):
+def nat_post_rules_entries(file_path, config_type, device_group_name=None):
     tree = ET.parse(file_path)
     root = tree.getroot()
 

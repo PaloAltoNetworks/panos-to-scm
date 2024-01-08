@@ -86,7 +86,7 @@ def main():
     application_group_entries = parse.application_group_entries(xml_file_path, config_type, device_group_name)
     
     security_rule_pre_entries = parse.security_pre_rules_entries(xml_file_path, config_type, device_group_name)
-    
+        
     security_rule_post_entries = []
     if config_type == 'panorama/device-group':
         security_rule_post_entries = parse.security_post_rules_entries(xml_file_path, config_type, device_group_name)
@@ -151,8 +151,12 @@ def main():
         max_workers = 5 ##Careful as this can cause API rate limiting blockage by API endpoint... 5 seems to be a rate for posting security policies        
         conf.post_entries(folder_scope, rules_to_create_pre, "security rules", obj.SecurityRule, extra_query_params="?position=pre")
     else:
-        print(f'No new pre-rules to create from XML: {xml_file_path}:{device_group_name} for SCM Folder: {folder_scope}.')
-        logging.info(f'No new pre-rules to create from XML: {xml_file_path}:{device_group_name} for SCM Folder: {folder_scope}.')
+        message = f"No new pre-rules to create from XML: {xml_file_path}"
+        if device_group_name:
+            message += f" (Device Group: {device_group_name})"
+        message += f" for SCM Folder: {folder_scope}."
+        print(message)
+        logging.info(message)
 
     # Print the time taken for object creation
     end_time_objects = time.time()

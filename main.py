@@ -53,37 +53,10 @@ def main():
     ### XML FilePath
     xml_file_path = 'example.xml'  # Update with your XML file - current supports Panorama and Local FW configuration
 
-    # Load and parse the XML file to determine configuration type
-    tree = ET.parse(xml_file_path)
-    root = tree.getroot()
-
-    # Check for the existence of the Panorama device-group XPath
-    device_group_xpath = root.find('.//devices/entry/device-group')
-    device_group_name = None
-
-    if device_group_xpath is not None:
-        # Panorama configuration
-        config_choice = input("Is this a Panorama 'shared' configuration or 'device-group' configuration? Enter 'shared' or 'device-group': ").strip().lower()
-        if config_choice == 'device-group':
-            device_group_name = input("Enter the device-group name: ").strip()
-            confirm_folder = input('What folder do you want the objects/policies to end up in? \n Use All for "Global" -Example "US-East-DC1" This is Case Sensitive: ').strip()
-            folder_scope = confirm_folder
-            config_type = 'panorama/device-group'
-        else:  # Assume shared if not device-group
-            confirm_global = input("Do you want these objects/policies to end up in the Global Folder on SCM? yes/no: ").strip().lower()
-            folder_scope = "All" if confirm_global == 'yes' else input('Enter folder name: ').strip()
-            config_type = 'panorama/shared'
-    else:
-        # Local configuration
-        confirm_folder = input('What folder do you want the objects/policies to end up in? \n Use All for "Global" -Example "US-East-DC1" This is Case Sensitive: ').strip()
-        folder_scope = confirm_folder
-        config_type = 'local'
+    # Use Processor class to parse XML and determine configuration
+    folder_scope, config_type, device_group_name = conf.parse_config_and_set_scope(xml_file_path)
     
     ### Parse XML file for different object types ####
-    """
-    I suggest uncommenting the print below one at a time to verify data is actually parsed
-    do this before uncommenting and calling the post_entries further down
-    """    
     url_categories = parse.url_category_entries(xml_file_path, config_type, device_group_name)
     
     url_profiles = parse.url_profiles_entries(xml_file_path, config_type, device_group_name)
@@ -175,6 +148,8 @@ def main():
 
     # Process new security rules for creation
     if rules_to_create_pre:
+        '''max_workers is used for parallel processing of API request - speed things along'''
+        max_workers = 5 ##Careful as this can cause API rate limiting blockage by API endpoint... 5 seems to be a rate for posting security policies        
         conf.post_entries(folder_scope, rules_to_create_pre, "security rules", obj.SecurityRule, extra_query_params="?position=pre")
 
     # Print the time taken for object creation

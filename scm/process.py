@@ -90,7 +90,7 @@ class Processor:
                     print(f"Prepared move: Rule '{rule_name}' (ID: {rule_id}) before '{desired_order[i + 1]}' (ID: {target_rule_id})")
 
             with ThreadPoolExecutor(max_workers=self.max_workers) as executor:
-                print(f'Currently utilizing {int(self.max_workers)} wokers.')
+                print(f'Currently utilizing {int(self.max_workers)} workers.')
                 futures = [executor.submit(security_rule_obj.move_rule, rule_id, folder_scope, "before", target_rule_id) for rule_id, target_rule_id in moves]
                 for future in futures:
                     future.result()  # Wait for each move to complete

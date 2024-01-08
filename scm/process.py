@@ -76,7 +76,7 @@ class Processor:
         print(f"Time taken for creating {entry_type}: {end_time_objects - start_time_objects:.2f} seconds\n")
         return created_count, exists_count, error_count
 
-    def reorder_rules(self, security_rule_obj, folder_scope, original_rules, current_rules):
+    def reorder_rules(self, security_rule_obj, folder_scope, original_rules, current_rules, position):
         current_rule_ids = {rule['name']: rule['id'] for rule in current_rules}
         current_order = [rule['name'] for rule in current_rules]
         desired_order = [rule['name'] for rule in original_rules if rule['name'] in current_rule_ids]
@@ -97,7 +97,7 @@ class Processor:
 
             with ThreadPoolExecutor(max_workers=self.max_workers) as executor:
                 print(f'Currently utilizing {int(self.max_workers)} workers.')
-                futures = [executor.submit(security_rule_obj.move_rule, rule_id, folder_scope, "before", target_rule_id) for rule_id, target_rule_id in moves]
+                futures = [executor.submit(security_rule_obj.move_rule, rule_id, folder_scope, "before", target_rule_id, position) for rule_id, target_rule_id in moves]
                 for future in futures:
                     future.result()  # Wait for each move to complete
 
@@ -141,14 +141,14 @@ class Processor:
 
         return folder_scope, config_type, device_group_name
 
-    def check_and_reorder_rules(self, security_rule_obj, folder_scope, original_rules):
+    def check_and_reorder_rules(self, security_rule_obj, folder_scope, original_rules, position):
         rules_in_correct_order = False
         last_known_order = None
         start_time_reordering = time.time()
 
         while not rules_in_correct_order:
-            current_rules_pre_updated = security_rule_obj.list_security_rules(folder_scope, "pre")
-            current_order = [rule['name'] for rule in current_rules_pre_updated if rule['name'] != 'default']
+            current_rules= security_rule_obj.list_security_rules(folder_scope, position)
+            current_order = [rule['name'] for rule in current_rules if rule['name'] != 'default']
 
             if current_order == last_known_order:
                 print("No change in rule order detected. Exiting reordering process.")
@@ -159,7 +159,7 @@ class Processor:
 
             if current_order != desired_order:
                 print("Reordering rules now..")
-                self.reorder_rules(security_rule_obj, folder_scope, original_rules, current_rules_pre_updated)
+                self.reorder_rules(security_rule_obj, folder_scope, original_rules, current_rules, position)
             else:
                 rules_in_correct_order = True
                 end_time_objects = time.time()

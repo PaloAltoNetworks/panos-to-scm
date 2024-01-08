@@ -1,5 +1,22 @@
 # /project/scm/__init__.py
+"""
+ISC License
 
+Copyright (c) 2023 Eric Chickering <eric.chickering@gmail.com>
+
+Permission to use, copy, modify, and/or distribute this software for any
+purpose with or without fee is hereby granted, provided that the above
+copyright notice and this permission notice appear in all copies.
+
+THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION
+OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN
+CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+
+"""
 import logging
 import time
 import json
@@ -88,7 +105,6 @@ class PanApiHandler:
                     return 'This object created', item_data['name']
                 else:
                     error_response = response.json()
-                    logging.error(f"API Error for '{item_data.get('name', '')}': Response: {response.text}, Status Code: {response.status_code}")
                     if response.status_code == 400:
                         if "object already exists" in str(error_response).lower():
                             logging.info(f"Object already exists for '{item_data.get('name', '')}'")
@@ -101,6 +117,8 @@ class PanApiHandler:
                             logging.warning(f"You might be hitting rate limiter with object '{item_data.get('name', '')}")
                             time.sleep(delay)
                             continue
+                        else:
+                            logging.error(f"API Error for '{item_data.get('name', '')}': Response: {response.text}, Status Code: {response.status_code}")
                     return 'error creating object', item_data['name'], "Error: Object creation failed"
             except Exception as e:
                 logging.error(f"Exception occurred for '{item_data.get('name', '')}': {str(e)}")
@@ -135,41 +153,3 @@ class PanApiHandler:
     def delete_object(self, endpoint, retries=1, delay=0.5):
         """ Delete an object via the API. """
         # Similar logic to get_object, but using session.delete
-
-    '''
-    Will move this here probably
-    '''
-    # def rearrange_rules(self, folder_scope, original_rules, current_rules, max_workers=5):
-    #     current_rule_ids = {rule['name']: rule['id'] for rule in current_rules}
-    #     current_order = [rule['name'] for rule in current_rules]
-    #     desired_order = [rule['name'] for rule in original_rules if rule['name'] in current_rule_ids]
-
-    #     max_attempts = 25
-    #     attempts = 0
-
-    #     while current_order != desired_order and attempts < max_attempts:
-    #         attempts += 1
-    #         moves = []
-
-    #         for i, rule_name in enumerate(desired_order[:-1]):
-    #             if current_order.index(rule_name) > current_order.index(desired_order[i + 1]):
-    #                 rule_id = current_rule_ids[rule_name]
-    #                 target_rule_id = current_rule_ids[desired_order[i + 1]]
-    #                 moves.append((rule_id, target_rule_id))
-    #                 print(f"Prepared move: Rule '{rule_name}' (ID: {rule_id}) before '{desired_order[i + 1]}' (ID: {target_rule_id})")
-
-    #         with ThreadPoolExecutor(max_workers=max_workers) as executor:
-    #             futures = [executor.submit(self.move_rule, rule_id, folder_scope, "before", target_rule_id) for rule_id, target_rule_id in moves]
-    #             for future in futures:
-    #                 future.result()  # Wait for each move to complete
-
-    #         if moves:
-    #             # Fetch current rules to see the result of the moves
-    #             updated_rules = self.list_security_rules(folder_scope, "pre")
-    #             current_order = [rule['name'] for rule in updated_rules if rule['name'] != 'default']
-    #             print(f"Updated rule order after attempt {attempts}: {current_order}")
-
-    #     if attempts >= max_attempts:
-    #         print("Reached maximum attempts to reorder rules. Exiting loop.")
-    #         print("Final current order:", current_order)
-    #         print("Desired order:", desired_order)

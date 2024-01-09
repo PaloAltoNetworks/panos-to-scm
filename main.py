@@ -20,11 +20,9 @@ CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 """
 
 import time
-import xml.etree.ElementTree as ET
 import logging
-from concurrent.futures import ThreadPoolExecutor
 from log_module import SCMLogger
-from parse import parse_panosxml2 as parse
+from parse.parse_panos import XMLParser
 from api import PanApiSession
 from scm import PanApiHandler
 from scm.process import Processor
@@ -51,87 +49,56 @@ def main():
     conf = Processor(api_handler, max_workers)
 
     ### XML FilePath
-    # xml_file_path = 'ISC-0517-1315.xml'  # Update with your XML file - current supports Panorama and Local FW configuration
-    # xml_file_path = 'policy-import2023.xml'  # Update with your XML file - current supports Panorama and Local FW configuration
-    xml_file_path = 'pa-440.xml'  # Update with your XML file - current supports Panorama and Local FW configuration
-
-    # Use Processor class to parse XML and determine configuration
+    xml_file_path = 'example.xml'  # Update with your XML file - current supports Panorama and Local FW configuration
+    
+    # Create an instance of XMLParser
     folder_scope, config_type, device_group_name = conf.parse_config_and_set_scope(xml_file_path)
-    
-    ### Parse XML file for different object types ####
-    url_categories = parse.url_category_entries(xml_file_path, config_type, device_group_name)
-    
-    url_profiles = parse.url_profiles_entries(xml_file_path, config_type, device_group_name)
-    
-    vulnerability_profiles = parse.vulnerability_profiles_entries(xml_file_path, config_type, device_group_name)
-    
-    spyware_profiles = parse.spyware_profiles_entries(xml_file_path, config_type, device_group_name)
-    
-    virus_profiles = parse.antivirus_profiles_entries(xml_file_path, config_type, device_group_name)
-    
-    profile_group_entries = parse.profile_group_entries(xml_file_path, config_type, device_group_name)
-    
-    tag_entries = parse.tag_entries(xml_file_path, config_type, device_group_name)
-    
-    address_entries = parse.address_entries(xml_file_path, config_type, device_group_name)
-    
-    address_group_entries = parse.address_group_entries(xml_file_path, config_type, device_group_name)
-    
-    service_entries = parse.service_entries(xml_file_path, config_type, device_group_name)
-    
-    service_group_entries = parse.service_group_entries(xml_file_path, config_type, device_group_name)
-    
-    edl_data_entries = parse.edl_entries(xml_file_path, config_type, device_group_name)
-    
-    app_filter_entries = parse.application_filter_entries(xml_file_path, config_type, device_group_name)
-    
-    application_group_entries = parse.application_group_entries(xml_file_path, config_type, device_group_name)
-    
-    security_rule_pre_entries = parse.security_pre_rules_entries(xml_file_path, config_type, device_group_name)
-        
-    security_rule_post_entries = []
-    if config_type == 'panorama/device-group':
-        security_rule_post_entries = parse.security_post_rules_entries(xml_file_path, config_type, device_group_name)
-    
-    nat_rule_pre_entries = parse.nat_pre_rules_entries(xml_file_path, config_type, device_group_name)
+    print(folder_scope, config_type, device_group_name)
+    xml_parser = XMLParser(xml_file_path, config_type, device_group_name)
 
-    nat_rule_post_entries = []
-    if config_type == 'panorama/device-group':
-        nat_rule_post_entries = parse.nat_post_rules_entries(xml_file_path, config_type, device_group_name)
+    # Parse all data using a single method call
+    parsed_data = xml_parser.parse_all()
     
-    ### Process each type of entry in sequence
+    ### Parse individual methods if preferred such as below
+    # url_categories = xml_parser.url_category_entries()
+    # url_profiles = xml_parser.url_profiles_entries()
 
     """
     I suggest commenting a few of the post_entries at a time to verify the syntax is correct, etc etc etc
-    """   
+    """
 
-    conf.post_entries(folder_scope, edl_data_entries, "EDL objects", obj.ExternalDynamicList, extra_query_params='')
+    entry_types = [
+        (parsed_data['edl_entries'], obj.ExternalDynamicList),
+        (parsed_data['url_categories'], obj.URLCategory),
+        (parsed_data['url_profiles'], obj.URLAccessProfile),
+        (parsed_data['vulnerability_profiles'], obj.VulnerabilityProtectionProfile),
+        (parsed_data['spyware_profiles'], obj.AntiSpywareProfile),
+        (parsed_data['antivirus_profiles'], obj.WildFireAntivirusProfile),
+        (parsed_data['profile_groups'], obj.ProfileGroup),
+        (parsed_data['tags'], obj.Tag),
+        (parsed_data['addresses'], obj.Address),
+        (parsed_data['address_groups'], obj.AddressGroup),
+        (parsed_data['service_entries'], obj.Service),
+        (parsed_data['service_groups'], obj.ServiceGroup),
+        (parsed_data['application_filters'], obj.ApplicationFilter),
+        (parsed_data['application_groups'], obj.ApplicationGroup)
+    ]
+
+    for entries, obj_class in entry_types:
+        conf.post_entries(folder_scope, entries, obj_class, extra_query_params='')
+
+    #Policies we are are going to do little different - since we'll be checking if they exist
+    security_rule_pre_entries = parsed_data['security_pre_rules']
+        
+    security_rule_post_entries = []
+    if config_type == 'panorama/device-group':
+        security_rule_post_entries = parsed_data['security_post_rules']
     
-    conf.post_entries(folder_scope, url_categories, "URL categories", obj.URLCategory, extra_query_params='')
+    nat_rule_pre_entries = parsed_data['nat_pre_rules']
 
-    conf.post_entries(folder_scope, url_profiles, "URL profiles", obj.URLAccessProfile, extra_query_params='')
-
-    conf.post_entries(folder_scope, vulnerability_profiles, "Vulnerability profiles", obj.VulnerabilityProtectionProfile, extra_query_params='')
-
-    conf.post_entries(folder_scope, spyware_profiles, "Spyware profiles", obj.AntiSpywareProfile, extra_query_params='')
-
-    conf.post_entries(folder_scope, virus_profiles, "WF-Antivirus profiles", obj.WildFireAntivirusProfile, extra_query_params='')
-
-    conf.post_entries(folder_scope, profile_group_entries, "Security Profile Groups", obj.ProfileGroup, extra_query_params='')
-
-    conf.post_entries(folder_scope, tag_entries, "Tag Objects", obj.Tag, extra_query_params='')
-    
-    conf.post_entries(folder_scope, address_entries, "Address Objects", obj.Address, extra_query_params='')
-
-    conf.post_entries(folder_scope, address_group_entries, "Address Groups", obj.AddressGroup, extra_query_params='')
-
-    conf.post_entries(folder_scope, service_entries, "Service Objects", obj.Service, extra_query_params='')
-
-    conf.post_entries(folder_scope, service_group_entries, "Service Groups", obj.ServiceGroup, extra_query_params='')
-
-    conf.post_entries(folder_scope, app_filter_entries, "Application Filters", obj.ApplicationFilter, extra_query_params='')
-
-    conf.post_entries(folder_scope, application_group_entries, "Application Groups", obj.ApplicationGroup, extra_query_params='')
+    nat_rule_post_entries = []
+    if config_type == 'panorama/device-group':
+        nat_rule_post_entries = parsed_data['nat_post_rules']
 
     # Retrieve current security rules before creating new ones
     security_rule_obj = obj.SecurityRule(api_handler)
@@ -146,9 +113,8 @@ def main():
     # Process new security rules for creation
     if rules_to_create_pre:
         '''max_workers is used for parallel processing of API request - speed things along'''
-        max_workers = 5 ###Careful as this can cause API rate limiting blockage by API endpoint... 5 seems to be a rate for posting security policies###
-        conf = Processor(api_handler, max_workers)
-        conf.post_entries(folder_scope, rules_to_create_pre, "security rules", obj.SecurityRule, extra_query_params="?position=pre")
+        conf.set_max_workers(4) ###Careful as this can cause API rate limiting blockage by API endpoint... 5 seems to be a rate for posting security policies###
+        conf.post_entries(folder_scope, rules_to_create_pre, obj.SecurityRule, extra_query_params="?position=pre")
     else:
         message = f"No new pre-rules to create from XML: {xml_file_path}"
         if device_group_name:
@@ -158,21 +124,20 @@ def main():
         logging.info(message)
 
     # Track and resolve if the rules are in the correct order
-    max_workers = 5 ###Careful as this can cause API rate limiting blockage by API endpoint... 5 seems to be a rate for re-ordering security policies###
-    conf = Processor(api_handler, max_workers)
+    conf.set_max_workers(4) ###Careful as this can cause API rate limiting blockage by API endpoint... 5 seems to be a rate for re-ordering security policies###
     conf.check_and_reorder_rules(security_rule_obj, folder_scope, security_rule_pre_entries, position='pre')
 
     # if security_rule_post_entries:
-    #     post_entries(folder_scope, security_rule_post_entries, create_objects, "security rules",  session, object_type='security-rules?', max_workers=1, extra_query_params="post") ###### Setting max_workers=1 as security rule sequencing is important (i.e. the rules need to be in proper ordering)
+    #     post_entries(folder_scope, security_rule_post_entries, create_objects, session, object_type='security-rules?', max_workers=1, extra_query_params="post") ###### Setting max_workers=1 as security rule sequencing is important (i.e. the rules need to be in proper ordering)
 
     """
     Uncomment the following NAT rule lines when ever feature added to the SCM API
     """  
 
-    # post_entries(folder_scope, nat_rule_pre_entries, create_objects, "nat rules", session, object_type='nat-rules?', max_workers=1, extra_query_params="pre") ###### Setting max_workers=1 as nat rule sequencing is important (i.e. the rules need to be in proper ordering)
+    # post_entries(folder_scope, nat_rule_pre_entries, create_objects, session, object_type='nat-rules?', max_workers=1, extra_query_params="pre") ###### Setting max_workers=1 as nat rule sequencing is important (i.e. the rules need to be in proper ordering)
 
     # if nat_rule_post_entries:
-    #     post_entries(folder_scope, nat_rule_post_entries, create_objects, "nat rules", session, object_type='nat-rules?', max_workers=1, extra_query_params="post") ###### Setting max_workers=1 as nat rule sequencing is important (i.e. the rules need to be in proper ordering)
+    #     post_entries(folder_scope, nat_rule_post_entries, create_objects, session, object_type='nat-rules?', max_workers=1, extra_query_params="post") ###### Setting max_workers=1 as nat rule sequencing is important (i.e. the rules need to be in proper ordering)
 
     end_time = time.time()  # End timing
     total_time = end_time - start_time

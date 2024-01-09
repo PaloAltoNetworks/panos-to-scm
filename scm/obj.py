@@ -2,6 +2,8 @@
 '''
 Most of this came from PANAPI and has been modified - https://github.com/PaloAltoNetworks/panapi/
 '''
+
+'''
 ISC License
 
 Copyright (c) 2022, Palo Alto Networks Inc.
@@ -41,9 +43,9 @@ class SecurityRule(PanApiHandler):
     def list_security_rules(self, folder_scope, position, limit=10000):
         return self.api_handler.list_objects(self._endpoint, folder_scope, position, limit)
     
-    def move_rule(self, rule_id, folder, destination, destination_rule=None, rulebase="pre"):
+    def move_rule(self, rule_id, folder, destination, destination_rule=None, position="pre"):
         """Move a security rule to a specified position."""
-        return self.api_handler.move_security_rule(rule_id, folder, destination, destination_rule, rulebase)
+        return self.api_handler.move_security_rule(rule_id, folder, destination, destination_rule, position)
 
 class Address(PanApiHandler):
     "An address object"

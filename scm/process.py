@@ -30,7 +30,10 @@ class Processor:
         self.api_handler = api_handler
         self.max_workers = max_workers
 
-    def post_entries(self, folder_scope, entries, entry_type, obj_class, extra_query_params):
+    def set_max_workers(self, new_max_workers):
+        self.max_workers = new_max_workers
+
+    def post_entries(self, folder_scope, entries, obj_class, extra_query_params):
         if not entries:
             print("No entries to process.")
             return
@@ -38,8 +41,9 @@ class Processor:
         start_time_objects = time.time()
 
         initial_entry_count = len(entries)
-        print(f"Processing {len(entries)} {entry_type} entries in parallel.")
-        logging.info(f"Processing {len(entries)} {entry_type} entries in parallel.")
+        message = obj_class.get_endpoint().replace('/sse/config/v1/','').replace('?','')
+        print(f"Processing {len(entries)} {message} entries in parallel.")
+        logging.info(f"Processing {len(entries)} {message} entries in parallel.")
         created_count, exists_count, error_count = 0, 0, 0
         error_objects = []
 
@@ -58,8 +62,8 @@ class Processor:
                 elif status == 'This object exists':
                     exists_count += 1
 
-        print(f"The processing of {entry_type} is complete.")
-        logging.info((f"The processing of {entry_type} is complete."))
+        print(f"The processing of {message} is complete.")
+        logging.info((f"The processing of {message} is complete."))
         print(f"Summary: {created_count} created, {exists_count} already existed, {error_count} errors.")
         potential_missing_objects = initial_entry_count - (created_count + exists_count)
         print(f"Initial Object/Policy count: {initial_entry_count}. Potential missing objects: {potential_missing_objects}")
@@ -73,7 +77,7 @@ class Processor:
         # Return the count of processed entries
         # Print the time taken for object creation
         end_time_objects = time.time()
-        print(f"Time taken for creating {entry_type}: {end_time_objects - start_time_objects:.2f} seconds\n")
+        print(f"Time taken for creating {message}: {end_time_objects - start_time_objects:.2f} seconds\n")
         return created_count, exists_count, error_count
 
     def reorder_rules(self, security_rule_obj, folder_scope, original_rules, current_rules, position):

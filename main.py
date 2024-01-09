@@ -42,8 +42,6 @@ def main():
     conf = Processor(api_handler, max_workers)
 
     ### XML FilePath
-    # xml_file_path = 'ISC-0517-1315.xml'  # Update with your XML file - current supports Panorama and Local FW configuration
-    # xml_file_path = 'policy-import2023.xml'  # Update with your XML file - current supports Panorama and Local FW configuration
     xml_file_path = 'pa-440.xml'  # Update with your XML file - current supports Panorama and Local FW configuration
     
     # Create an instance of XMLParser

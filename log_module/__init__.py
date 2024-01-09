@@ -24,6 +24,7 @@ import time
 class SCMLogger:
     def __init__(self, log_file='debug-log.txt'):
         self.log_file = log_file
+        self.setup_logging()  # Automatically set up logging when an instance is created
 
     def setup_logging(self):
         # Perform cleanup of old logs before setting up new logging configuration
@@ -31,6 +32,9 @@ class SCMLogger:
 
         # Setting up the new logging configuration
         logging.basicConfig(filename=self.log_file, level=logging.DEBUG, format='%(asctime)s %(levelname)s: %(message)s')
+
+        # Mark the start of the run in the log
+        self.mark_start_of_run_in_log()
 
     def mark_start_of_run_in_log(self):
         if os.path.exists(self.log_file):
@@ -43,13 +47,17 @@ class SCMLogger:
             file.write(start_marker)
         return position
 
-    def print_warnings_and_errors_from_log(self, start_position):
+    def print_warnings_and_errors_from_log(self):
         try:
             with open(self.log_file, 'r') as file:
-                file.seek(start_position)  # Jump to the start of the current run
-                for line in file:
-                    if "WARNING" in line or "ERROR" in line or "CRITICAL" in line:
-                        print(line.strip())
+                lines = file.readlines()
+
+            # Find the last "Script Run Start" marker and set the start position from there
+            last_start_pos = max([i for i, line in enumerate(lines) if "Script Run Start" in line], default=0)
+
+            for line in lines[last_start_pos:]:
+                if "WARNING" in line or "ERROR" in line or "CRITICAL" in line:
+                    print(line.strip())
         except FileNotFoundError:
             print("Log file not found.")
 
@@ -74,3 +82,6 @@ class SCMLogger:
 
                 if time.mktime(timestamp) > cutoff:
                     file.write(line)
+
+# Automatically initialize logging when module is imported
+logger = SCMLogger()

@@ -28,13 +28,6 @@ from scm import PanApiHandler
 from scm.process import Processor
 import scm.obj as obj
 
-# Setup SCMLogger
-logger = SCMLogger()
-# Start Logging
-logger.setup_logging()
-# Mark the start of the run in the log
-start_position = logger.mark_start_of_run_in_log()
-
 def main():
     ##time this script
     start_time = time.time()  # Start timing
@@ -49,7 +42,9 @@ def main():
     conf = Processor(api_handler, max_workers)
 
     ### XML FilePath
-    xml_file_path = 'example.xml'  # Update with your XML file - current supports Panorama and Local FW configuration
+    # xml_file_path = 'ISC-0517-1315.xml'  # Update with your XML file - current supports Panorama and Local FW configuration
+    # xml_file_path = 'policy-import2023.xml'  # Update with your XML file - current supports Panorama and Local FW configuration
+    xml_file_path = 'pa-440.xml'  # Update with your XML file - current supports Panorama and Local FW configuration
     
     # Create an instance of XMLParser
     folder_scope, config_type, device_group_name = conf.parse_config_and_set_scope(xml_file_path)
@@ -145,7 +140,7 @@ def main():
 
 
 if __name__ == "__main__":
-    start_position = logger.mark_start_of_run_in_log()
+    start_position = SCMLogger().mark_start_of_run_in_log()
     main()
-    logger.print_warnings_and_errors_from_log(start_position)
+    SCMLogger().print_warnings_and_errors_from_log()
     print("Script finished! Check the terminal for warnings and errors.\nCheck debug-log.txt for further debug logs")

@@ -32,12 +32,13 @@ class PanApiHandler:
         """ Ensure the session token is valid. """
         self.session.ensure_valid_token()
 
-    def list_objects(self, endpoint, folder_scope, position, limit=10000):
+    def list_objects(self, endpoint, folder_scope, position, limit='10000'):
         """Retrieve a list of objects."""
 
         self.ensure_valid_token()
 
-        url = f"{self.BASE_URL}/{endpoint}?position={position}&folder={folder_scope}&limit={limit}&offset=0"
+        url = f"{self.BASE_URL}{endpoint}?position={position}&folder={folder_scope}&limit={limit}&offset=0"
+        # print(url)
 
         try:
             response = self.session.get(url=url)

@@ -28,6 +28,33 @@ class XMLParser:
         self.tree = ET.parse(self.file_path)
         self.root = self.tree.getroot()
 
+    def parse_config_and_set_scope(self, xml_file_path):
+        tree = ET.parse(xml_file_path)
+        root = tree.getroot()
+
+        device_group_xpath = root.find('.//devices/entry/device-group')
+        device_group_name = None
+
+        if device_group_xpath is not None:
+            # Panorama configuration
+            config_choice = input("Is this a Panorama 'shared' configuration or 'device-group' configuration? Enter 'shared' or 'device-group': ").strip().lower()
+            if config_choice == 'device-group':
+                device_group_name = input("Enter the device-group name: ").strip()
+                confirm_folder = input('What folder do you want the objects/policies to end up in? \n Use All for "Global" -Example "US-East-DC1" This is Case Sensitive: ').strip()
+                folder_scope = confirm_folder
+                config_type = 'panorama/device-group'
+            else:
+                confirm_global = input("Do you want these objects/policies to end up in the Global Folder on SCM? yes/no: ").strip().lower()
+                folder_scope = "All" if confirm_global == 'yes' else input('Enter folder name: ').strip()
+                config_type = 'panorama/shared'
+        else:
+            # Local configuration
+            confirm_folder = input('What folder do you want the objects/policies to end up in? \n Use All for "Global" -Example "US-East-DC1" This is Case Sensitive: ').strip()
+            folder_scope = confirm_folder
+            config_type = 'local'
+
+        return folder_scope, config_type, device_group_name
+
     def etree_to_dict(self, element):
         if element is None:
             return None

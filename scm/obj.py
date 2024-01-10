@@ -40,7 +40,7 @@ class SecurityRule(PanApiHandler):
     def __init__(self, api_handler):
         self.api_handler = api_handler
 
-    def list_security_rules(self, folder_scope, position, limit=10000):
+    def list_security_rules(self, folder_scope, position, limit=''):
         return self.api_handler.list_objects(self._endpoint, folder_scope, position, limit)
     
     def move_rule(self, rule_id, folder, destination, destination_rule=None, position="pre"):
@@ -50,6 +50,12 @@ class SecurityRule(PanApiHandler):
 class Address(PanApiHandler):
     "An address object"
     _endpoint = "/sse/config/v1/addresses?"
+
+    def __init__(self, api_handler):
+        self.api_handler = api_handler
+
+    def list_address(self, folder_scope, limit='', position=''):
+        return self.api_handler.list_objects(self._endpoint, folder_scope, limit, position)
 
 class AddressGroup(PanApiHandler):
     "An address group"
@@ -126,14 +132,6 @@ class URLCategory(PanApiHandler):
 class URLFilteringCategory(PanApiHandler):
     "A predefined URL category"
     _endpoint = "/sse/config/v1/url-filtering-categories?"
-
-class Address(PanApiHandler):
-    "An address object"
-    _endpoint = "/sse/config/v1/addresses?"
-
-class AddressGroup(PanApiHandler):
-    "An address group"
-    _endpoint = "/sse/config/v1/address-groups?"
 
 class Application(PanApiHandler):
     "An application object"

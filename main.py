@@ -22,7 +22,7 @@ CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 import time
 import logging
 from log_module import SCMLogger
-from parse.parse_panos import XMLParser
+from parse.parse_panos import XMLParser as xml
 from api import PanApiSession
 from scm import PanApiHandler
 from scm.process import Processor
@@ -43,22 +43,39 @@ def main():
 
     ### XML FilePath
     xml_file_path = 'pa-440.xml'  # Update with your XML file - current supports Panorama and Local FW configuration
-    
+    # xml_file_path = 'ISC-0517-1315.xml'  # Update with your XML file - current supports Panorama and Local FW configuration
+
     # Create an instance of XMLParser
-    folder_scope, config_type, device_group_name = conf.parse_config_and_set_scope(xml_file_path)
+    parse = xml(xml_file_path, None)  # Initialize with None for config_type and device_group_name
+
+    # Parse config and set scope
+    folder_scope, config_type, device_group_name = parse.parse_config_and_set_scope(xml_file_path)
     print(folder_scope, config_type, device_group_name)
-    xml_parser = XMLParser(xml_file_path, config_type, device_group_name)
+
+    # Update XMLParser instance with the config type and device group name
+    parse.config_type = config_type
+    parse.device_group_name = device_group_name
 
     # Parse all data using a single method call
-    parsed_data = xml_parser.parse_all()
+    parsed_data = parse.parse_all()
     
     ### Parse individual methods if preferred such as below
-    # url_categories = xml_parser.url_category_entries()
-    # url_profiles = xml_parser.url_profiles_entries()
+    # url_categories = parse.url_category_entries()
+    # url_profiles = parse.url_profiles_entries()
 
     """
     I suggest commenting a few of the post_entries at a time to verify the syntax is correct, etc etc etc
     """
+    #Get Current SCM Objects
+    addr_obj = obj.Address(api_handler)
+    all_addr = addr_obj.list_address(folder_scope, limit='10000')
+    current_scm_addr = set((addr['name'], addr.get('ip_netmask') or addr.get('ip_range') or addr.get('fqdn')) for addr in all_addr)
+
+    '''Update parsed data to send to SCM for already existing items. This only currently matches:
+    if 'name' and 'type' are 100% match. Otherwise, it'll attempt to create and exception object already exists    
+    '''
+
+    new_addresses = [addr for addr in parsed_data['addresses'] if (addr['name'], addr.get('ip_netmask') or addr.get('ip_range') or addr.get('fqdn')) not in current_scm_addr]
 
     entry_types = [
         (parsed_data['edl_entries'], obj.ExternalDynamicList),
@@ -69,7 +86,7 @@ def main():
         (parsed_data['antivirus_profiles'], obj.WildFireAntivirusProfile),
         (parsed_data['profile_groups'], obj.ProfileGroup),
         (parsed_data['tags'], obj.Tag),
-        (parsed_data['addresses'], obj.Address),
+        (new_addresses, obj.Address),
         (parsed_data['address_groups'], obj.AddressGroup),
         (parsed_data['service_entries'], obj.Service),
         (parsed_data['service_groups'], obj.ServiceGroup),
@@ -86,7 +103,7 @@ def main():
 
     # # Retrieve current security rules before creating new ones
     security_rule_obj = obj.SecurityRule(api_handler)
-    all_rules_pre = security_rule_obj.list_security_rules(folder_scope, limit=10000, position='pre')
+    all_rules_pre = security_rule_obj.list_security_rules(folder_scope, limit='10000', position='pre')
 
     # # Filter out rules that do not belong to the specific folder_scope
     current_rules_pre = [rule for rule in all_rules_pre if rule['folder'] == folder_scope]
@@ -112,9 +129,9 @@ def main():
         print(message)
         logging.info(message)
 
-    # # Track and resolve if the rules are in the correct order
+    # Track and resolve if the rules are in the correct order
     conf.set_max_workers(4) ###Careful as this can cause API rate limiting blockage by API endpoint... 5 seems to be a rate for re-ordering security policies###
-    conf.check_and_reorder_rules(security_rule_obj, folder_scope, security_rule_pre_entries, position='pre')
+    conf.check_and_reorder_rules(security_rule_obj, folder_scope, security_rule_pre_entries, limit='10000', position='pre')
 
     # if security_rule_post_entries:
     #     post_entries(folder_scope, security_rule_post_entries, create_objects, session, object_type='security-rules?', max_workers=1, extra_query_params="post") ###### Setting max_workers=1 as security rule sequencing is important (i.e. the rules need to be in proper ordering)

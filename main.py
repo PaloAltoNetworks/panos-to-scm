@@ -82,28 +82,24 @@ def main():
 
     #Policies we are are going to do little different - since we'll be checking if they exist
     security_rule_pre_entries = parsed_data['security_pre_rules']
-        
-    security_rule_post_entries = []
-    if config_type == 'panorama/device-group':
-        security_rule_post_entries = parsed_data['security_post_rules']
-    
-    nat_rule_pre_entries = parsed_data['nat_pre_rules']
+    # print(f'Current Palo pre-rules: {security_rule_pre_entries}')
 
-    nat_rule_post_entries = []
-    if config_type == 'panorama/device-group':
-        nat_rule_post_entries = parsed_data['nat_post_rules']
-
-    # Retrieve current security rules before creating new ones
+    # # Retrieve current security rules before creating new ones
     security_rule_obj = obj.SecurityRule(api_handler)
-    current_rules_pre = security_rule_obj.list_security_rules(folder_scope, position='pre')
+    all_rules_pre = security_rule_obj.list_security_rules(folder_scope, limit=10000, position='pre')
+
+    # # Filter out rules that do not belong to the specific folder_scope
+    current_rules_pre = [rule for rule in all_rules_pre if rule['folder'] == folder_scope]
+    # print(f'Current SCM pre-rules: {current_rules_pre}')
 
     # Extract rule names from current rules data
     current_rule_names_pre = set(rule['name'] for rule in current_rules_pre)
 
     # Identify new rules that need to be created
     rules_to_create_pre = [rule for rule in security_rule_pre_entries if rule['name'] not in current_rule_names_pre]
+    print(f'Rules that need to be added to SCM: {rules_to_create_pre}')
 
-    # Process new security rules for creation
+    #Process new security rules for creation
     if rules_to_create_pre:
         '''max_workers is used for parallel processing of API request - speed things along'''
         conf.set_max_workers(4) ###Careful as this can cause API rate limiting blockage by API endpoint... 5 seems to be a rate for posting security policies###
@@ -116,7 +112,7 @@ def main():
         print(message)
         logging.info(message)
 
-    # Track and resolve if the rules are in the correct order
+    # # Track and resolve if the rules are in the correct order
     conf.set_max_workers(4) ###Careful as this can cause API rate limiting blockage by API endpoint... 5 seems to be a rate for re-ordering security policies###
     conf.check_and_reorder_rules(security_rule_obj, folder_scope, security_rule_pre_entries, position='pre')
 

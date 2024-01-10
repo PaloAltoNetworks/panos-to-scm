@@ -107,16 +107,18 @@ class Processor:
 
             if moves:
                 # Only fetch current rules if there were moves made
-                current_rules = security_rule_obj.list_security_rules(folder_scope, "pre")
+                all_current_rules = security_rule_obj.list_security_rules(folder_scope, position)
+                # Filter out rules that do not belong to the specific folder_scope
+                current_rules = [rule for rule in all_current_rules if rule['folder'] == folder_scope]
                 current_order = [rule['name'] for rule in current_rules if rule['name'] != 'default']
-                print(f"Updated rule order after attempt {attempts}: {current_order}")
+                # print(f"Updated rule order after attempt {attempts}: {current_order}")
                 logging.info(f"Updated rule order after attempt {attempts}: {current_order}")
 
         if attempts >= max_attempts:
             print("Reached maximum attempts to reorder rules. Exiting loop.")
             logging.warning("Reached maximum attempts to reorder rules. Exiting loop.")
-            print("Final current order:", current_order)
-            print("Desired order:", desired_order)
+            # print("Final current order:", current_order)
+            # print("Desired order:", desired_order)
 
     def parse_config_and_set_scope(self, xml_file_path):
         tree = ET.parse(xml_file_path)
@@ -151,7 +153,11 @@ class Processor:
         start_time_reordering = time.time()
 
         while not rules_in_correct_order:
-            current_rules= security_rule_obj.list_security_rules(folder_scope, position)
+            # Fetch current rules from SCM
+            all_current_rules = security_rule_obj.list_security_rules(folder_scope, position)
+
+            # Filter out rules that do not belong to the specific folder_scope
+            current_rules = [rule for rule in all_current_rules if rule['folder'] == folder_scope]
             current_order = [rule['name'] for rule in current_rules if rule['name'] != 'default']
 
             if current_order == last_known_order:
@@ -159,14 +165,16 @@ class Processor:
                 break
             last_known_order = current_order
 
+            # Determine the desired order of rules
             desired_order = [rule['name'] for rule in original_rules if rule['name'] != 'default']
 
+            # Check if reordering is needed
             if current_order != desired_order:
                 print("Reordering rules now..")
                 self.reorder_rules(security_rule_obj, folder_scope, original_rules, current_rules, position)
             else:
                 rules_in_correct_order = True
-                end_time_objects = time.time()
+
         end_time_reordering = time.time()
         print(f"Time taken for reordering rules: {end_time_reordering - start_time_reordering:.2f} seconds")
         return last_known_order

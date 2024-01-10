@@ -80,7 +80,7 @@ class Processor:
         print(f"Time taken for creating {message}: {end_time_objects - start_time_objects:.2f} seconds\n")
         return created_count, exists_count, error_count
 
-    def reorder_rules(self, security_rule_obj, folder_scope, original_rules, current_rules, position):
+    def reorder_rules(self, security_rule_obj, folder_scope, original_rules, current_rules, limit, position):
         current_rule_ids = {rule['name']: rule['id'] for rule in current_rules}
         current_order = [rule['name'] for rule in current_rules]
         desired_order = [rule['name'] for rule in original_rules if rule['name'] in current_rule_ids]
@@ -107,7 +107,7 @@ class Processor:
 
             if moves:
                 # Only fetch current rules if there were moves made
-                all_current_rules = security_rule_obj.list_security_rules(folder_scope, position)
+                all_current_rules = security_rule_obj.list_security_rules(folder_scope, limit, position)
                 # Filter out rules that do not belong to the specific folder_scope
                 current_rules = [rule for rule in all_current_rules if rule['folder'] == folder_scope]
                 current_order = [rule['name'] for rule in current_rules if rule['name'] != 'default']
@@ -120,41 +120,14 @@ class Processor:
             # print("Final current order:", current_order)
             # print("Desired order:", desired_order)
 
-    def parse_config_and_set_scope(self, xml_file_path):
-        tree = ET.parse(xml_file_path)
-        root = tree.getroot()
-
-        device_group_xpath = root.find('.//devices/entry/device-group')
-        device_group_name = None
-
-        if device_group_xpath is not None:
-            # Panorama configuration
-            config_choice = input("Is this a Panorama 'shared' configuration or 'device-group' configuration? Enter 'shared' or 'device-group': ").strip().lower()
-            if config_choice == 'device-group':
-                device_group_name = input("Enter the device-group name: ").strip()
-                confirm_folder = input('What folder do you want the objects/policies to end up in? \n Use All for "Global" -Example "US-East-DC1" This is Case Sensitive: ').strip()
-                folder_scope = confirm_folder
-                config_type = 'panorama/device-group'
-            else:
-                confirm_global = input("Do you want these objects/policies to end up in the Global Folder on SCM? yes/no: ").strip().lower()
-                folder_scope = "All" if confirm_global == 'yes' else input('Enter folder name: ').strip()
-                config_type = 'panorama/shared'
-        else:
-            # Local configuration
-            confirm_folder = input('What folder do you want the objects/policies to end up in? \n Use All for "Global" -Example "US-East-DC1" This is Case Sensitive: ').strip()
-            folder_scope = confirm_folder
-            config_type = 'local'
-
-        return folder_scope, config_type, device_group_name
-
-    def check_and_reorder_rules(self, security_rule_obj, folder_scope, original_rules, position):
+    def check_and_reorder_rules(self, security_rule_obj, folder_scope, original_rules, limit, position):
         rules_in_correct_order = False
         last_known_order = None
         start_time_reordering = time.time()
 
         while not rules_in_correct_order:
             # Fetch current rules from SCM
-            all_current_rules = security_rule_obj.list_security_rules(folder_scope, position)
+            all_current_rules = security_rule_obj.list_security_rules(folder_scope, limit, position)
 
             # Filter out rules that do not belong to the specific folder_scope
             current_rules = [rule for rule in all_current_rules if rule['folder'] == folder_scope]
@@ -171,7 +144,7 @@ class Processor:
             # Check if reordering is needed
             if current_order != desired_order:
                 print("Reordering rules now..")
-                self.reorder_rules(security_rule_obj, folder_scope, original_rules, current_rules, position)
+                self.reorder_rules(security_rule_obj, folder_scope, original_rules, current_rules, limit, position)
             else:
                 rules_in_correct_order = True
 

@@ -42,7 +42,7 @@ class PanApiHandler:
             url = f"{self.BASE_URL}{endpoint}position={position}&folder={folder_scope}&limit={limit}&offset=0"
         else:
             url = f"{self.BASE_URL}{endpoint}folder={folder_scope}&limit={limit}&offset=0"
-        # print(url)
+        print(url)
 
         try:
             response = self.session.get(url=url)
@@ -228,10 +228,10 @@ class SCMObjectManager:
                 print(message)
                 logging.info(message)
 
-    def process_security_rules(self, parsed_data, xml_file_path, rule_order):
+    def process_security_rules(self, parsed_data, xml_file_path, rule_order, limit='10000'):
         # Logic to process security rules
-        pre_rules = self.fetch_rules(self.obj.SecurityRule, limit='10000', position='pre')
-        post_rules = self.fetch_rules(self.obj.SecurityRule, limit='10000', position='post')
+        pre_rules = self.fetch_rules(self.obj.SecurityRule, limit, position='pre')
+        post_rules = self.fetch_rules(self.obj.SecurityRule, limit, position='post')
         current_rules_pre = [rule for rule in pre_rules if rule['folder'] == self.folder_scope]
         current_rules_post = [rule for rule in post_rules if rule['folder'] == self.folder_scope]
         current_rule_names_pre = set(rule['name'] for rule in current_rules_pre)

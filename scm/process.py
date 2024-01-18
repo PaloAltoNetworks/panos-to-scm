@@ -19,7 +19,7 @@ CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
 """
 
-from scm import PanApiHandler
+# from scm import PanApiHandler
 from concurrent.futures import ThreadPoolExecutor
 import logging
 import time
@@ -101,7 +101,7 @@ class Processor:
 
             with ThreadPoolExecutor(max_workers=self.max_workers) as executor:
                 print(f'Currently utilizing {int(self.max_workers)} workers.')
-                futures = [executor.submit(security_rule_obj.move_rule, rule_id, folder_scope, "before", target_rule_id, position) for rule_id, target_rule_id in moves]
+                futures = [executor.submit(security_rule_obj.move, rule_id, folder_scope, "before", target_rule_id, position) for rule_id, target_rule_id in moves]
                 for future in futures:
                     future.result()  # Wait for each move to complete
 
@@ -151,3 +151,13 @@ class Processor:
         end_time_reordering = time.time()
         print(f"Time taken for reordering rules: {end_time_reordering - start_time_reordering:.2f} seconds")
         return last_known_order
+
+class RuleProcessor:
+    @staticmethod
+    def is_rule_order_correct(current_rules, desired_rules):
+        """
+        Check if the order of rules in current_rules matches the order in desired_rules.
+        """
+        current_rule_names = [rule['name'] for rule in current_rules]
+        desired_rule_names = [rule['name'] for rule in desired_rules]
+        return current_rule_names == desired_rule_names

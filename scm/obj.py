@@ -40,8 +40,8 @@ class SecurityRule(PanApiHandler):
     def __init__(self, api_handler):
         self.api_handler = api_handler
 
-    def list_security_rules(self, folder_scope, position, limit=''):
-        return self.api_handler.list_objects(self._endpoint, folder_scope, position, limit)
+    def list_security_rules(self, folder_scope, limit, position):
+        return self.api_handler.list_object(self._endpoint, folder_scope, limit, position)
     
     def move_rule(self, rule_id, folder, destination, destination_rule=None, position="pre"):
         """Move a security rule to a specified position."""
@@ -55,11 +55,37 @@ class Address(PanApiHandler):
         self.api_handler = api_handler
 
     def list_address(self, folder_scope, limit='', position=''):
-        return self.api_handler.list_objects(self._endpoint, folder_scope, limit, position)
+        return self.api_handler.list_object(self._endpoint, folder_scope, limit, position)
 
 class AddressGroup(PanApiHandler):
     "An address group"
     _endpoint = "/sse/config/v1/address-groups?"
+    
+    def __init__(self, api_handler):
+        self.api_handler = api_handler
+
+    def list_address_group(self, folder_scope, limit='', position=''):
+        return self.api_handler.list_object(self._endpoint, folder_scope, limit, position)
+
+class Service(PanApiHandler):
+    "An application group"
+    _endpoint = "/sse/config/v1/services?"
+    
+    def __init__(self, api_handler):
+        self.api_handler = api_handler
+
+    def list_service(self, folder_scope, limit='', position=''):
+        return self.api_handler.list_object(self._endpoint, folder_scope, limit, position)
+    
+class ServiceGroup(PanApiHandler):
+    "A service group"
+    _endpoint = "/sse/config/v1/service-groups?"
+    
+    def __init__(self, api_handler):
+        self.api_handler = api_handler
+
+    def list_service_group(self, folder_scope, limit='', position=''):
+        return self.api_handler.list_object(self._endpoint, folder_scope, limit, position)
 
 class Application(PanApiHandler):
     "An application object"
@@ -69,9 +95,21 @@ class ApplicationFilter(PanApiHandler):
     "An application filter"
     _endpoint = "/sse/config/v1/application-filters?"
 
+    def __init__(self, api_handler):
+        self.api_handler = api_handler
+
+    def list_app_filter(self, folder_scope, limit='', position=''):
+        return self.api_handler.list_object(self._endpoint, folder_scope, limit, position)
+
 class ApplicationGroup(PanApiHandler):
     "An application group"
     _endpoint = "/sse/config/v1/application-groups?"
+
+    def __init__(self, api_handler):
+        self.api_handler = api_handler
+
+    def list_app_group(self, folder_scope, limit='', position=''):
+        return self.api_handler.list_object(self._endpoint, folder_scope, limit, position)
 
 class ApplicationOverrideRule(PanApiHandler):
     "An application override rule"
@@ -80,10 +118,6 @@ class ApplicationOverrideRule(PanApiHandler):
 class AutoTagAction(PanApiHandler):
     "An auto-tag action"
     _endpoint = "/sse/config/v1/auto-tag-actions?"
-
-class Certificate(PanApiHandler):
-    "An X.509 certificate"
-    _endpoint = "/sse/config/v1/certificates?"
 
 class CertificateProfile(PanApiHandler):
     "A certificate profile"
@@ -96,6 +130,12 @@ class DynamicUserGroup(PanApiHandler):
 class ExternalDynamicList(PanApiHandler):
     "An external dynamic list"
     _endpoint = "/sse/config/v1/external-dynamic-lists?"
+
+    def __init__(self, api_handler):
+        self.api_handler = api_handler
+
+    def list_edl(self, folder_scope, limit='', position=''):
+        return self.api_handler.list_object(self._endpoint, folder_scope, limit, position)
 
 class HipObject(PanApiHandler):
     "A HIP object"
@@ -113,93 +153,25 @@ class Schedule(PanApiHandler):
     "A schedule"
     _endpoint = "/sse/config/v1/schedules?"
 
-class Service(PanApiHandler):
-    "An application group"
-    _endpoint = "/sse/config/v1/services?"
-
-class ServiceGroup(PanApiHandler):
-    "A service group"
-    _endpoint = "/sse/config/v1/service-groups?"
-
 class Tag(PanApiHandler):
     "A tag object"
     _endpoint = "/sse/config/v1/tags?"
+
+    def __init__(self, api_handler):
+        self.api_handler = api_handler
+
+    def list_tag(self, folder_scope, limit='', position=''):
+        return self.api_handler.list_object(self._endpoint, folder_scope, limit, position)
 
 class URLCategory(PanApiHandler):
     "A custom URL category"
     _endpoint = "/sse/config/v1/url-categories?"
 
-class URLFilteringCategory(PanApiHandler):
-    "A predefined URL category"
-    _endpoint = "/sse/config/v1/url-filtering-categories?"
+    def __init__(self, api_handler):
+        self.api_handler = api_handler
 
-class Application(PanApiHandler):
-    "An application object"
-    _endpoint = "/sse/config/v1/applications?"
-
-class ApplicationFilter(PanApiHandler):
-    "An application filter"
-    _endpoint = "/sse/config/v1/application-filters?"
-
-class ApplicationGroup(PanApiHandler):
-    "An application group"
-    _endpoint = "/sse/config/v1/application-groups?"
-
-class ApplicationOverrideRule(PanApiHandler):
-    "An application override rule"
-    _endpoint = "/sse/config/v1/app-override-rules?"
-
-class AutoTagAction(PanApiHandler):
-    "An auto-tag action"
-    _endpoint = "/sse/config/v1/auto-tag-actions?"
-
-class Certificate(PanApiHandler):
-    "An X.509 certificate"
-    _endpoint = "/sse/config/v1/certificates?"
-
-class CertificateProfile(PanApiHandler):
-    "A certificate profile"
-    _endpoint = "/sse/config/v1/certificate-profiles?"
-
-class DynamicUserGroup(PanApiHandler):
-    "A dynamic user group"
-    _endpoint = "/sse/config/v1/dynamic-user-groups?"
-
-class ExternalDynamicList(PanApiHandler):
-    "An external dynamic list"
-    _endpoint = "/sse/config/v1/external-dynamic-lists?"
-
-class HipObject(PanApiHandler):
-    "A HIP object"
-    _endpoint = "/sse/config/v1/hip-objects?"
-
-class HipProfile(PanApiHandler):
-    "A HIP profile"
-    _endpoint = "/sse/config/v1/hip-profiles?"
-
-class Region(PanApiHandler):
-    "A region"
-    _endpoint = "/sse/config/v1/regions?"
-
-class Schedule(PanApiHandler):
-    "A schedule"
-    _endpoint = "/sse/config/v1/schedules?"
-
-class Service(PanApiHandler):
-    "An application group"
-    _endpoint = "/sse/config/v1/services?"
-
-class ServiceGroup(PanApiHandler):
-    "A service group"
-    _endpoint = "/sse/config/v1/service-groups?"
-
-class Tag(PanApiHandler):
-    "A tag object"
-    _endpoint = "/sse/config/v1/tags?"
-
-class URLCategory(PanApiHandler):
-    "A custom URL category"
-    _endpoint = "/sse/config/v1/url-categories?"
+    def list_urlcategory(self, folder_scope, limit='', position=''):
+        return self.api_handler.list_object(self._endpoint, folder_scope, limit, position)
 
 class URLFilteringCategory(PanApiHandler):
     "A predefined URL category"
@@ -208,6 +180,12 @@ class URLFilteringCategory(PanApiHandler):
 class AntiSpywareProfile(PanApiHandler):
     "An anti-spyware profile"
     _endpoint = "/sse/config/v1/anti-spyware-profiles?"
+
+    def __init__(self, api_handler):
+        self.api_handler = api_handler
+
+    def list_spywareprofile(self, folder_scope, limit='', position=''):
+        return self.api_handler.list_object(self._endpoint, folder_scope, limit, position)
 
 class AntiSpywareSignature(PanApiHandler):
     "An anti-spyware signature"
@@ -241,13 +219,31 @@ class ProfileGroup(PanApiHandler):
     "A profile group"
     _endpoint = "/sse/config/v1/profile-groups?"
 
+    def __init__(self, api_handler):
+        self.api_handler = api_handler
+
+    def list_profilegroup(self, folder_scope, limit='', position=''):
+        return self.api_handler.list_object(self._endpoint, folder_scope, limit, position)
+
 class URLAccessProfile(PanApiHandler):
     "A URL access profile"
     _endpoint = "/sse/config/v1/url-access-profiles?"
 
+    def __init__(self, api_handler):
+        self.api_handler = api_handler
+
+    def list_urlprofile(self, folder_scope, limit='', position=''):
+        return self.api_handler.list_object(self._endpoint, folder_scope, limit, position)
+    
 class VulnerabilityProtectionProfile(PanApiHandler):
     "A vulnerability protection profile"
     _endpoint = "/sse/config/v1/vulnerability-protection-profiles?"
+
+    def __init__(self, api_handler):
+        self.api_handler = api_handler
+
+    def list_vulnprofile(self, folder_scope, limit='', position=''):
+        return self.api_handler.list_object(self._endpoint, folder_scope, limit, position)
 
 class VulnerabilityProtectionSignature(PanApiHandler):
     "A vulnerability protection signature"
@@ -256,3 +252,9 @@ class VulnerabilityProtectionSignature(PanApiHandler):
 class WildFireAntivirusProfile(PanApiHandler):
     "A WildFire antivirus profile"
     _endpoint = "/sse/config/v1/wildfire-anti-virus-profiles?"
+
+    def __init__(self, api_handler):
+        self.api_handler = api_handler
+
+    def list_virusprofile(self, folder_scope, limit='', position=''):
+        return self.api_handler.list_object(self._endpoint, folder_scope, limit, position)

@@ -65,6 +65,7 @@ def main():
     # Parse all data using a single method call
     parsed_data = parse.parse_all()
 
+    # Call SCMObjectManager class with API Session and Obj endpoints
     scm_obj_manager = SCMObjectManager(api_handler, folder_scope, configure, obj)
 
     # List of object types to fetch

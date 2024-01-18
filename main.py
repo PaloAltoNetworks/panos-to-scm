@@ -84,7 +84,7 @@ def main():
     '''
     We're going to process security rules differently.. Mainly because we need to set the position(pre rulebase VS post rulebase)
     '''
-    scm_obj_manager.process_security_rules(parsed_data, xml_file_path, rule_order)
+    scm_obj_manager.process_security_rules(parsed_data, xml_file_path, rule_order, limit='10000')
 
     # # End of Script Timing
     end_time = time.time()  # End timing

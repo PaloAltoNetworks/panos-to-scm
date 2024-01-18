@@ -107,7 +107,7 @@ class Processor:
 
             if moves:
                 # Only fetch current rules if there were moves made
-                all_current_rules = security_rule_obj.list_security_rules(folder_scope, limit, position)
+                all_current_rules = security_rule_obj.list(folder_scope, limit, position)
                 # Filter out rules that do not belong to the specific folder_scope
                 current_rules = [rule for rule in all_current_rules if rule['folder'] == folder_scope]
                 current_order = [rule['name'] for rule in current_rules if rule['name'] != 'default']
@@ -127,7 +127,7 @@ class Processor:
 
         while not rules_in_correct_order:
             # Fetch current rules from SCM
-            all_current_rules = security_rule_obj.list_security_rules(folder_scope, limit, position)
+            all_current_rules = security_rule_obj.list(folder_scope, limit, position)
 
             # Filter out rules that do not belong to the specific folder_scope
             current_rules = [rule for rule in all_current_rules if rule['folder'] == folder_scope]

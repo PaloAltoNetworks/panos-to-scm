@@ -28,6 +28,7 @@ from scm import PanApiHandler
 from scm.process import Processor
 import scm.obj as obj
 
+
 def main():
     ##time this script
     start_time = time.time()  # Start timing
@@ -39,11 +40,10 @@ def main():
     session = PanApiSession()
     session.authenticate()
     api_handler = PanApiHandler(session)
-    conf = Processor(api_handler, max_workers)
+    configure = Processor(api_handler, max_workers)
 
     ### XML FilePath
     xml_file_path = 'pa-440.xml'  # Update with your XML file - current supports Panorama and Local FW configuration
-    # xml_file_path = 'ISC-0517-1315.xml'  # Update with your XML file - current supports Panorama and Local FW configuration
 
     # Create an instance of XMLParser
     parse = xml(xml_file_path, None)  # Initialize with None for config_type and device_group_name
@@ -66,61 +66,107 @@ def main():
     """
     I suggest commenting a few of the post_entries at a time to verify the syntax is correct, etc etc etc
     """
-    #Get Current SCM Objects
+    # # Build the API Session for the API Endpoint
+    tag_obj = obj.Tag(api_handler)
     addr_obj = obj.Address(api_handler)
-    all_addr = addr_obj.list_address(folder_scope, limit='10000')
+    addr_grp_obj = obj.AddressGroup(api_handler)
+    service_obj = obj.Service(api_handler)
+    service_grp_obj = obj.ServiceGroup(api_handler)
+    edl_obj = obj.ExternalDynamicList(api_handler)
+    url_obj = obj.URLCategory(api_handler)
+    url_prof_obj = obj.URLAccessProfile(api_handler)
+    vuln_prof_obj = obj.VulnerabilityProtectionProfile(api_handler)
+    spyware_obj = obj.AntiSpywareProfile(api_handler)
+    virus_obj = obj.WildFireAntivirusProfile(api_handler)
+    profileGroup_obj = obj.ProfileGroup(api_handler)
+    appFilter_obj = obj.ApplicationFilter(api_handler)
+    appGroup_obj = obj.ApplicationGroup(api_handler)
+    security_rule_obj = obj.SecurityRule(api_handler)
+
+    # # Get Current SCM Objects
+    all_tag = tag_obj.list_tag(folder_scope, position='', limit='10000')
+    all_addr = addr_obj.list_address(folder_scope, position='', limit='10000')
+    all_addr_grp = addr_grp_obj.list_address_group(folder_scope, position='', limit='10000')
+    all_service = service_obj.list_service(folder_scope, position='', limit='10000')
+    all_service_grp = service_grp_obj.list_service_group(folder_scope, position='', limit='10000')
+    all_edl = edl_obj.list_edl(folder_scope, position='', limit='10000')
+    all_url = url_obj.list_urlcategory(folder_scope, position='', limit='10000')
+    all_url_prof = url_prof_obj.list_urlprofile(folder_scope, position='', limit='1000')
+    all_vuln_prof = vuln_prof_obj.list_vulnprofile(folder_scope, position='', limit='1000')
+    all_spyware_prof = spyware_obj.list_spywareprofile(folder_scope, position='', limit='1000')
+    all_virus_prof = virus_obj.list_virusprofile(folder_scope, position='', limit='1000')
+    all_profile_group = profileGroup_obj.list_profilegroup(folder_scope, position='', limit='1000')
+    all_app_filter = appFilter_obj.list_app_filter(folder_scope, position='', limit='1000')
+    all_app_group = appGroup_obj.list_app_group(folder_scope, position='', limit='1000')
+    # print(all_profile_group)
+    all_rules_pre = security_rule_obj.list_security_rules(folder_scope, position='pre', limit='10000')
+    
+    current_scm_tag = set(tags['name'] for tags in all_tag)
     current_scm_addr = set((addr['name'], addr.get('ip_netmask') or addr.get('ip_range') or addr.get('fqdn')) for addr in all_addr)
+    current_scm_addr_grp_names = set(addr_grp['name'] for addr_grp in all_addr_grp)
+    current_scm_service = set(service['name'] for service in all_service)
+    current_scm_service_grp = set(service['name'] for service in all_service_grp)
+    current_scm_edl = set(edl['name'] for edl in all_edl)
+    current_scm_url = set(url['name'] for url in all_url)
+    current_scm_url_profile = set(url['name'] for url in all_url_prof)
+    current_scm_vuln_profile = set(prof['name'] for prof in all_vuln_prof)
+    current_scm_spy_profile = set(prof['name'] for prof in all_spyware_prof)
+    current_scm_virus_profile = set(prof['name'] for prof in all_virus_prof)
+    current_scm_profile_group = set(prof['name'] for prof in all_profile_group)
+    current_scm_app_filter = set(app['name'] for app in all_app_filter)
+    current_scm_app_group = set(app['name'] for app in all_app_group)
+    
+    # # Slightly different method for security rules
+    current_rules_pre = [rule for rule in all_rules_pre if rule['folder'] == folder_scope]
+    current_rule_names_pre = set(rule['name'] for rule in current_rules_pre)
+    security_rule_pre_entries = parsed_data['security_pre_rules']
+    rules_to_create_pre = [rule for rule in security_rule_pre_entries if rule['name'] not in current_rule_names_pre]
 
     '''Update parsed data to send to SCM for already existing items. This only currently matches:
-    if 'name' and 'type' are 100% match. Otherwise, it'll attempt to create and exception object already exists    
+    if 'name' and 'type' are 100% match at least for address objects. Otherwise, it'll attempt to create
+    and exception raises that an object already exists
     '''
 
-    new_addresses = [addr for addr in parsed_data['addresses'] if (addr['name'], addr.get('ip_netmask') or addr.get('ip_range') or addr.get('fqdn')) not in current_scm_addr]
+    new_tag = [tags for tags in parsed_data['tags'] if tags['name'] not in current_scm_tag]
+    new_addr = [addr for addr in parsed_data['addresses'] if (addr['name'], addr.get('ip_netmask') or addr.get('ip_range') or addr.get('fqdn')) not in current_scm_addr]
+    new_addr_grp = [addr_grp for addr_grp in parsed_data['address_groups'] if addr_grp['name'] not in current_scm_addr_grp_names]
+    new_service = [service for service in parsed_data['service_entries'] if service['name'] not in current_scm_service]
+    new_service_grp = [service for service in parsed_data['service_groups'] if service['name'] not in current_scm_service_grp]
+    new_edl = [edl for edl in parsed_data['edl_entries'] if edl['name'] not in current_scm_edl]
+    new_url = [url for url in parsed_data['url_categories'] if url['name'] not in current_scm_url]
+    new_url_profile = [url for url in parsed_data['url_categories'] if url['name'] not in current_scm_url_profile]
+    new_vuln_profile = [prof for prof in parsed_data['vulnerability_profiles'] if prof['name'] not in current_scm_vuln_profile]
+    new_spyware_profile = [prof for prof in parsed_data['spyware_profiles'] if prof['name'] not in current_scm_spy_profile]
+    new_virus_profile = [prof for prof in parsed_data['antivirus_profiles'] if prof['name'] not in current_scm_virus_profile]
+    new_profile_group = [prof for prof in parsed_data['profile_groups'] if prof['name'] not in current_scm_profile_group]
+    new_app_filter = [app for app in parsed_data['application_filters'] if app['name'] not in current_scm_app_filter]
+    new_app_group = [app for app in parsed_data['application_groups'] if app ['name'] not in current_scm_app_group]
 
     entry_types = [
-        (parsed_data['edl_entries'], obj.ExternalDynamicList),
-        (parsed_data['url_categories'], obj.URLCategory),
-        (parsed_data['url_profiles'], obj.URLAccessProfile),
-        (parsed_data['vulnerability_profiles'], obj.VulnerabilityProtectionProfile),
-        (parsed_data['spyware_profiles'], obj.AntiSpywareProfile),
-        (parsed_data['antivirus_profiles'], obj.WildFireAntivirusProfile),
-        (parsed_data['profile_groups'], obj.ProfileGroup),
-        (parsed_data['tags'], obj.Tag),
-        (new_addresses, obj.Address),
-        (parsed_data['address_groups'], obj.AddressGroup),
-        (parsed_data['service_entries'], obj.Service),
-        (parsed_data['service_groups'], obj.ServiceGroup),
-        (parsed_data['application_filters'], obj.ApplicationFilter),
-        (parsed_data['application_groups'], obj.ApplicationGroup)
+        (new_edl, obj.ExternalDynamicList),
+        (new_url, obj.URLCategory),
+        (new_url_profile, obj.URLAccessProfile),
+        (new_vuln_profile, obj.VulnerabilityProtectionProfile),
+        (new_spyware_profile, obj.AntiSpywareProfile),
+        (new_virus_profile, obj.WildFireAntivirusProfile),
+        (new_profile_group, obj.ProfileGroup),
+        (new_tag, obj.Tag),
+        (new_addr, obj.Address),
+        (new_addr_grp, obj.AddressGroup),
+        (new_service, obj.Service),
+        (new_service_grp, obj.ServiceGroup),
+        (new_app_filter, obj.ApplicationFilter),
+        (new_app_group, obj.ApplicationGroup)
     ]
 
     for entries, obj_class in entry_types:
-        conf.post_entries(folder_scope, entries, obj_class, extra_query_params='')
-
-    #Policies we are are going to do little different - since we'll be checking if they exist
-    security_rule_pre_entries = parsed_data['security_pre_rules']
-    # print(f'Current Palo pre-rules: {security_rule_pre_entries}')
-
-    # # Retrieve current security rules before creating new ones
-    security_rule_obj = obj.SecurityRule(api_handler)
-    all_rules_pre = security_rule_obj.list_security_rules(folder_scope, limit='10000', position='pre')
-
-    # # Filter out rules that do not belong to the specific folder_scope
-    current_rules_pre = [rule for rule in all_rules_pre if rule['folder'] == folder_scope]
-    # print(f'Current SCM pre-rules: {current_rules_pre}')
-
-    # Extract rule names from current rules data
-    current_rule_names_pre = set(rule['name'] for rule in current_rules_pre)
-
-    # Identify new rules that need to be created
-    rules_to_create_pre = [rule for rule in security_rule_pre_entries if rule['name'] not in current_rule_names_pre]
-    print(f'Rules that need to be added to SCM: {rules_to_create_pre}')
+        configure.post_entries(folder_scope, entries, obj_class, extra_query_params='')
 
     #Process new security rules for creation
     if rules_to_create_pre:
         '''max_workers is used for parallel processing of API request - speed things along'''
-        conf.set_max_workers(4) ###Careful as this can cause API rate limiting blockage by API endpoint... 5 seems to be a rate for posting security policies###
-        conf.post_entries(folder_scope, rules_to_create_pre, obj.SecurityRule, extra_query_params="?position=pre")
+        configure.set_max_workers(4) ###Careful as this can cause API rate limiting blockage by API endpoint... 4 seems to be a rate for posting security policies###
+        configure.post_entries(folder_scope, rules_to_create_pre, obj.SecurityRule, extra_query_params="?position=pre")
     else:
         message = f"No new pre-rules to create from XML: {xml_file_path}"
         if device_group_name:
@@ -130,8 +176,8 @@ def main():
         logging.info(message)
 
     # Track and resolve if the rules are in the correct order
-    conf.set_max_workers(4) ###Careful as this can cause API rate limiting blockage by API endpoint... 5 seems to be a rate for re-ordering security policies###
-    conf.check_and_reorder_rules(security_rule_obj, folder_scope, security_rule_pre_entries, limit='10000', position='pre')
+    configure.set_max_workers(4) ###Careful as this can cause API rate limiting blockage by API endpoint... 4 seems to be a rate for re-ordering security policies###
+    configure.check_and_reorder_rules(security_rule_obj, folder_scope, security_rule_pre_entries, limit='10000', position='pre')
 
     # if security_rule_post_entries:
     #     post_entries(folder_scope, security_rule_post_entries, create_objects, session, object_type='security-rules?', max_workers=1, extra_query_params="post") ###### Setting max_workers=1 as security rule sequencing is important (i.e. the rules need to be in proper ordering)

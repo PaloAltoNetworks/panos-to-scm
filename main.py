@@ -25,7 +25,7 @@ from log_module import SCMLogger
 from parse.parse_panos import XMLParser as xml
 from api import PanApiSession
 from scm import PanApiHandler,SCMObjectManager
-from scm.process import Processor, RuleProcessor
+from scm.process import Processor
 import scm.obj as obj
 
 

@@ -21,6 +21,7 @@ import logging
 import time
 import json
 from concurrent.futures import ThreadPoolExecutor, as_completed
+from .process import RuleProcessor
 
 class PanApiHandler:
     BASE_URL = "https://api.sase.paloaltonetworks.com"
@@ -41,7 +42,7 @@ class PanApiHandler:
             url = f"{self.BASE_URL}{endpoint}position={position}&folder={folder_scope}&limit={limit}&offset=0"
         else:
             url = f"{self.BASE_URL}{endpoint}folder={folder_scope}&limit={limit}&offset=0"
-        print(url)
+        # print(url)
 
         try:
             response = self.session.get(url=url)
@@ -157,3 +158,110 @@ class PanApiHandler:
     def delete_object(self, endpoint, retries=1, delay=0.5):
         """ Delete an object via the API. """
         # Similar logic to get_object, but using session.delete
+
+class SCMObjectManager:
+    def __init__(self, api_handler, folder_scope, configure, obj_module):
+        self.api_handler = api_handler
+        self.folder_scope = folder_scope
+        self.configure = configure
+        self.obj = obj_module 
+
+    def fetch_objects(self, obj_type, limit='10000', position=''):
+        obj_instance = obj_type(self.api_handler)
+        all_objects = obj_instance.list(self.folder_scope, limit=limit, position=position)
+        return set(o['name'] for o in all_objects)
+
+    def fetch_rules(self, obj_type, limit='10000', **kwargs):
+        obj_instance = obj_type(self.api_handler)
+        response = obj_instance.list(self.folder_scope, limit=limit, **kwargs)  # Assuming this calls the API and gets the response
+        all_objects = response
+
+        # Processing each object in the response
+        return [o for o in all_objects if 'name' in o and 'folder' in o]
+
+    def get_current_objects(self, obj_types, max_workers=8, limit='10000', **kwargs):
+        print(f"Running with {max_workers} workers.")  # Add this line to print the number of workers
+
+        with ThreadPoolExecutor(max_workers=max_workers) as executor:
+            future_to_obj_type = {
+                executor.submit(self.fetch_objects, obj_type, limit, **kwargs.get(obj_type.__name__, {})): obj_type 
+                for obj_type in obj_types
+            }
+            results = {}
+            for future in as_completed(future_to_obj_type):
+                obj_type = future_to_obj_type[future]
+                try:
+                    data = future.result()
+                    results[obj_type] = data
+                except Exception as exc:
+                    print(f'{obj_type.__name__} generated an exception: {exc}')
+            return results
+
+    def get_new_entries(self, parsed_data, current_objects):
+        new_entries = {}
+        for obj_type in current_objects.keys():
+            entry_type_name = obj_type.__name__
+            # Generate the key name in a format that matches the parsed_data keys
+            parsed_data_key = self._generate_key_name(entry_type_name)
+            if parsed_data_key in parsed_data:
+                current_set = current_objects[obj_type]
+                new_entries[entry_type_name] = [o for o in parsed_data[parsed_data_key] if o['name'] not in current_set]
+            else:
+                # Handle the case where the key is not found in parsed_data
+                print(f"Warning: Key '{parsed_data_key}' not found in parsed_data.")
+        return new_entries
+
+    def _generate_key_name(self, entry_type_name):
+        # Modify this method to generate the key name as per your requirement
+        return entry_type_name
+
+    def post_new_entries(self, new_entries, folder_scope, device_group_name):
+        for entry_type_name, entries in new_entries.items():
+            if entries:
+                entry_class = getattr(self.obj, entry_type_name)
+                self.configure.post_entries(folder_scope, entries, entry_class, extra_query_params='')
+            else:
+                message = f"No new {entry_type_name} entries to create from parsed data"
+                if device_group_name:
+                    message += f" (Device Group: {device_group_name})"
+                message += f" for SCM Folder: {folder_scope}."
+                print(message)
+                logging.info(message)
+
+    def process_security_rules(self, parsed_data, xml_file_path, rule_order):
+        # Logic to process security rules
+        pre_rules = self.fetch_rules(self.obj.SecurityRule, limit='10000', position='pre')
+        post_rules = self.fetch_rules(self.obj.SecurityRule, limit='10000', position='post')
+        current_rules_pre = [rule for rule in pre_rules if rule['folder'] == self.folder_scope]
+        current_rules_post = [rule for rule in post_rules if rule['folder'] == self.folder_scope]
+        current_rule_names_pre = set(rule['name'] for rule in current_rules_pre)
+        current_rule_names_post = set(rule['name'] for rule in current_rules_post)
+        security_rule_pre_entries = parsed_data['security_pre_rules']
+        security_rule_post_entries = parsed_data['security_post_rules']
+        rules_to_create_pre = [rule for rule in security_rule_pre_entries if rule['name'] not in current_rule_names_pre]
+        rules_to_create_post = [rule for rule in security_rule_post_entries if rule['name'] not in current_rule_names_post]
+
+        rule_types = [
+            (rules_to_create_pre, "?position=pre", "pre-rules"),
+            (rules_to_create_post, "?position=post", "post-rules")
+        ]
+
+        for rules, extra_query_param, rule_type_name in rule_types:
+            if rules:
+                self.configure.set_max_workers(4)
+                self.configure.post_entries(self.folder_scope, rules, self.obj.SecurityRule, extra_query_params=extra_query_param)
+            else:
+                message = f"No new {rule_type_name} to create from XML: {xml_file_path}"
+                print(message)
+                logging.info(message)
+
+        # Reorder rules if necessary
+        self.reorder_rules_if_needed(security_rule_pre_entries, current_rules_pre, 'pre', rule_order)
+        self.reorder_rules_if_needed(security_rule_post_entries, current_rules_post, 'post', rule_order)
+
+    def reorder_rules_if_needed(self, security_rule_entries, current_rules, position, rule_order):
+        # Use self.obj.SecurityRule to initialize rule_order if not passed
+        rule_order = rule_order or self.obj.SecurityRule(self.api_handler)
+        if not RuleProcessor.is_rule_order_correct(current_rules, security_rule_entries):
+            self.configure.set_max_workers(4)
+            self.configure.check_and_reorder_rules(rule_order, self.folder_scope, security_rule_entries, limit='10000', position=position)

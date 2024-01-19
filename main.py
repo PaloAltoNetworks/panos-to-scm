@@ -21,7 +21,7 @@ CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
 import time
 from log_module import SCMLogger
-from parse.parse_panos import XMLParser as xml
+from parse.parse_panos import XMLParser
 from api import PanApiSession
 from scm import PanApiHandler,SCMObjectManager
 from scm.process import Processor
@@ -51,7 +51,7 @@ def main():
     xml_file_path = 'ISC-0517-1315.xml'  # Update with your XML file - current supports Panorama and Local FW configuration
 
     # # Create an instance of XMLParser
-    parse = xml(xml_file_path, None)  # Initialize with None for config_type and device_group_name
+    parse = XMLParser(xml_file_path, None)  # Initialize with None for config_type and device_group_name
 
     # # Parse config and set scope
     folder_scope, config_type, device_group_name = parse.parse_config_and_set_scope(xml_file_path)
@@ -64,25 +64,15 @@ def main():
     # # Parse all data using a single method call
     parsed_data = parse.parse_all()
 
-    '''
-    We're going to process security rules differently.. Mainly because we need to set the position(pre rulebase VS post rulebase)
-    '''
-
+    # # Add obj types from /scm/obj.py for additional obj types to send to SCM
     obj_types = [obj.Tag, obj.Address, obj.AddressGroup, obj.Service, obj.ServiceGroup, obj.ExternalDynamicList, obj.URLCategory, obj.URLAccessProfile, obj.VulnerabilityProtectionProfile, obj.AntiSpywareProfile,
                  obj.WildFireAntivirusProfile, obj.ProfileGroup, obj.ApplicationFilter, obj.ApplicationGroup ]
 
     # # Call SCMObjectManager class with API Session and Obj endpoints
     scm_obj_manager = SCMObjectManager(api_handler, folder_scope, configure, obj, obj_types)
 
-    # # List current objects in SCM
-    current_objects = scm_obj_manager.get_current_objects(obj_types, limit='10000')
-
-    # # Get new entries based on parsed data and current SCM objects
-    new_entries = scm_obj_manager.get_new_entries(parsed_data, current_objects)
-
-    # # Post new entries to SCM
-    scm_obj_manager.post_new_entries(new_entries, folder_scope, device_group_name)
-
+    # Process objects (Tags, Addresses, AddressGroups, Services, etc.)
+    scm_obj_manager.process_objects(parsed_data, folder_scope, device_group_name)
     '''
     We're going to process security rules differently.. Mainly because we need to set the position(pre rulebase VS post rulebase)
     '''

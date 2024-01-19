@@ -8,7 +8,7 @@ class AppConfig:
         # Define the path to the XML file that contains the data to be processed
         self.xml_file_path = 'ISC-0517-1315.xml'  # Update as needed
 
-        # Define the limit for rule processing
+        # Define the limit for how much objects to list..
         self.limit = '10000'
 
         # List of object types to be processed, as defined in your main.py

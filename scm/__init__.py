@@ -178,6 +178,16 @@ class SCMObjectManager:
         all_objects = self.api_handler.list_object(endpoint, self.folder_scope, limit, position)
         return [o for o in all_objects if 'name' in o and 'folder' in o]
 
+    def process_objects(self, parsed_data, folder_scope, device_group_name, max_workers=8, limit='10000'):
+        # List current objects in SCM
+        current_objects = self.get_current_objects(self.obj_types, max_workers=max_workers, limit=limit)
+
+        # Get new entries based on parsed data and current SCM objects
+        new_entries = self.get_new_entries(parsed_data, current_objects)
+
+        # Post new entries to SCM
+        self.post_new_entries(new_entries, folder_scope, device_group_name)
+
     def get_current_objects(self, obj_types, max_workers=8, limit='10000', **kwargs):
         print(f"Running with {max_workers} workers.")  # Add this line to print the number of workers
 
@@ -211,7 +221,7 @@ class SCMObjectManager:
         return new_entries
 
     def _generate_key_name(self, entry_type_name):
-        # Modify this method to generate the key name as per your requirement
+        # This matches the API Endpoint name as a Key to use for get_new_entries to match parsed_data_key
         return entry_type_name
 
     def post_new_entries(self, new_entries, folder_scope, device_group_name):

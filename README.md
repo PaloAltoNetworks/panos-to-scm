@@ -18,8 +18,9 @@ client_secret: abc12345-52b6-405c-a754-c2fffffb3561
 tsg_id: 123456789
 ```
 
-## Update the following
+## Main.py config
 Update xml_file_path from main() with your XML file export of Panorama or Local Firewall running config
+Decide what obj_types you want to use. Script will GET all objects, rules, process your XML and post new entries. Also handles rule ordering if something gets out of order(order determined by XML)
 
 ## Currently Support Features:
 

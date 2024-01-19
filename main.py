@@ -47,8 +47,8 @@ def main():
     rule_order = obj.SecurityRule(api_handler)
 
     # # XML FilePath
-    # xml_file_path = 'pa-440.xml'  # Update with your XML file - current supports Panorama and Local FW configuration
-    xml_file_path = 'ISC-0517-1315.xml'  # Update with your XML file - current supports Panorama and Local FW configuration
+    xml_file_path = 'pa-440.xml'  # Update with your XML file - current supports Panorama and Local FW configuration
+    # xml_file_path = 'ISC-0517-1315.xml'  # Update with your XML file - current supports Panorama and Local FW configuration
 
     # # Create an instance of XMLParser
     parse = XMLParser(xml_file_path, None)  # Initialize with None for config_type and device_group_name

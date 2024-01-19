@@ -160,23 +160,22 @@ class PanApiHandler:
         # Similar logic to get_object, but using session.delete
 
 class SCMObjectManager:
-    def __init__(self, api_handler, folder_scope, configure, obj_module):
+    def __init__(self, api_handler, folder_scope, configure, obj_module, obj_types):
         self.api_handler = api_handler
         self.folder_scope = folder_scope
         self.configure = configure
-        self.obj = obj_module 
+        self.obj = obj_module
+        self.obj_types = obj_types 
 
     def fetch_objects(self, obj_type, limit='10000', position=''):
-        obj_instance = obj_type(self.api_handler)
-        all_objects = obj_instance.list(self.folder_scope, limit=limit, position=position)
+        endpoint = obj_type._endpoint
+        all_objects = self.api_handler.list_object(endpoint, self.folder_scope, limit, position)
         return set(o['name'] for o in all_objects)
 
-    def fetch_rules(self, obj_type, limit='10000', **kwargs):
-        obj_instance = obj_type(self.api_handler)
-        response = obj_instance.list(self.folder_scope, limit=limit, **kwargs)  # Assuming this calls the API and gets the response
-        all_objects = response
+    def fetch_rules(self, obj_type, limit='10000', position=''):
+        endpoint = obj_type._endpoint
 
-        # Processing each object in the response
+        all_objects = self.api_handler.list_object(endpoint, self.folder_scope, limit, position)
         return [o for o in all_objects if 'name' in o and 'folder' in o]
 
     def get_current_objects(self, obj_types, max_workers=8, limit='10000', **kwargs):
@@ -216,17 +215,22 @@ class SCMObjectManager:
         return entry_type_name
 
     def post_new_entries(self, new_entries, folder_scope, device_group_name):
-        for entry_type_name, entries in new_entries.items():
-            if entries:
-                entry_class = getattr(self.obj, entry_type_name)
-                self.configure.post_entries(folder_scope, entries, entry_class, extra_query_params='')
+        for obj_type in self.obj_types:  # Iterate over the predefined order of object types
+            entry_type_name = obj_type.__name__
+            if entry_type_name in new_entries:
+                entries = new_entries[entry_type_name]
+                if entries:
+                    entry_class = getattr(self.obj, entry_type_name)
+                    self.configure.post_entries(folder_scope, entries, entry_class, extra_query_params='')
+                else:
+                    message = f"No new {entry_type_name} entries to create from parsed data"
+                    if device_group_name:
+                        message += f" (Device Group: {device_group_name})"
+                    message += f" for SCM Folder: {folder_scope}."
+                    print(message)
+                    logging.info(message)
             else:
-                message = f"No new {entry_type_name} entries to create from parsed data"
-                if device_group_name:
-                    message += f" (Device Group: {device_group_name})"
-                message += f" for SCM Folder: {folder_scope}."
-                print(message)
-                logging.info(message)
+                print(f"Warning: {entry_type_name} not found in new entries.")
 
     def process_security_rules(self, parsed_data, xml_file_path, rule_order, limit='10000'):
         # Logic to process security rules
@@ -256,10 +260,10 @@ class SCMObjectManager:
                 logging.info(message)
 
         # Reorder rules if necessary
-        self.reorder_rules_if_needed(security_rule_pre_entries, current_rules_pre, 'pre', rule_order)
-        self.reorder_rules_if_needed(security_rule_post_entries, current_rules_post, 'post', rule_order)
+        self.reorder_rules_if_needed(security_rule_pre_entries, current_rules_pre, rule_order, position='pre')
+        self.reorder_rules_if_needed(security_rule_post_entries, current_rules_post, rule_order, position='post')
 
-    def reorder_rules_if_needed(self, security_rule_entries, current_rules, position, rule_order):
+    def reorder_rules_if_needed(self, security_rule_entries, current_rules, rule_order, position):
         # Use self.obj.SecurityRule to initialize rule_order if not passed
         rule_order = rule_order or self.obj.SecurityRule(self.api_handler)
         if not RuleProcessor.is_rule_order_correct(current_rules, security_rule_entries):

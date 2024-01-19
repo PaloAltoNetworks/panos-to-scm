@@ -26,9 +26,10 @@ import time
 import xml.etree.ElementTree as ET
 
 class Processor:
-    def __init__(self, api_handler, max_workers):
+    def __init__(self, api_handler, max_workers, obj_module):
         self.api_handler = api_handler
         self.max_workers = max_workers
+        self.obj = obj_module  # Added obj_module attribute
 
     def set_max_workers(self, new_max_workers):
         self.max_workers = new_max_workers
@@ -99,44 +100,30 @@ class Processor:
                     moves.append((rule_id, target_rule_id))
                     print(f"Prepared move: Rule '{rule_name}' (ID: {rule_id}) before '{desired_order[i + 1]}' (ID: {target_rule_id})")
 
+            if not moves:
+                break  # Exit loop if no moves are required
+
             with ThreadPoolExecutor(max_workers=self.max_workers) as executor:
-                print(f'Currently utilizing {int(self.max_workers)} workers.')
+                print(f'Currently utilizing {self.max_workers} workers.')
                 futures = [executor.submit(security_rule_obj.move, rule_id, folder_scope, "before", target_rule_id, position) for rule_id, target_rule_id in moves]
                 for future in futures:
-                    future.result()  # Wait for each move to complete
+                    future.result()
 
-            if moves:
-                # Only fetch current rules if there were moves made
-                all_current_rules = security_rule_obj.list(folder_scope, limit, position)
-                # Filter out rules that do not belong to the specific folder_scope
-                current_rules = [rule for rule in all_current_rules if rule['folder'] == folder_scope]
-                current_order = [rule['name'] for rule in current_rules if rule['name'] != 'default']
-                # print(f"Updated rule order after attempt {attempts}: {current_order}")
-                logging.info(f"Updated rule order after attempt {attempts}: {current_order}")
-
-        if attempts >= max_attempts:
-            print("Reached maximum attempts to reorder rules. Exiting loop.")
-            logging.warning("Reached maximum attempts to reorder rules. Exiting loop.")
-            # print("Final current order:", current_order)
-            # print("Desired order:", desired_order)
+            # Refetch the rules to update the current order
+            all_current_rules = self.api_handler.list_object(self.obj.SecurityRule.get_endpoint(), folder_scope, limit, position)
+            current_rules = [rule for rule in all_current_rules if rule['folder'] == folder_scope]
+            current_order = [rule['name'] for rule in current_rules if rule['name'] != 'default']
 
     def check_and_reorder_rules(self, security_rule_obj, folder_scope, original_rules, limit, position):
         rules_in_correct_order = False
-        last_known_order = None
         start_time_reordering = time.time()
 
         while not rules_in_correct_order:
             # Fetch current rules from SCM
-            all_current_rules = security_rule_obj.list(folder_scope, limit, position)
-
-            # Filter out rules that do not belong to the specific folder_scope
+            endpoint = self.obj.SecurityRule.get_endpoint()
+            all_current_rules = self.api_handler.list_object(endpoint, folder_scope, limit, position)
             current_rules = [rule for rule in all_current_rules if rule['folder'] == folder_scope]
             current_order = [rule['name'] for rule in current_rules if rule['name'] != 'default']
-
-            if current_order == last_known_order:
-                print("No change in rule order detected. Exiting reordering process.")
-                break
-            last_known_order = current_order
 
             # Determine the desired order of rules
             desired_order = [rule['name'] for rule in original_rules if rule['name'] != 'default']
@@ -144,13 +131,13 @@ class Processor:
             # Check if reordering is needed
             if current_order != desired_order:
                 print("Reordering rules now..")
-                self.reorder_rules(security_rule_obj, folder_scope, original_rules, current_rules, limit, position)
+                moves_made = self.reorder_rules(security_rule_obj, folder_scope, original_rules, current_rules, limit, position)
+                rules_in_correct_order = not moves_made
             else:
                 rules_in_correct_order = True
 
         end_time_reordering = time.time()
         print(f"Time taken for reordering rules: {end_time_reordering - start_time_reordering:.2f} seconds")
-        return last_known_order
 
 class RuleProcessor:
     @staticmethod

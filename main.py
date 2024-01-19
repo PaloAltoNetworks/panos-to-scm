@@ -1,90 +1,75 @@
 # /project/main.py
 
-"""
-ISC License
-
-Copyright (c) 2023 Eric Chickering <eric.chickering@gmail.com>
-
-Permission to use, copy, modify, and/or distribute this software for any
-purpose with or without fee is hereby granted, provided that the above
-copyright notice and this permission notice appear in all copies.
-
-THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
-WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
-MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
-ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
-WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION
-OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN
-CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
-
-"""
-
+import logging
+from logging.handlers import TimedRotatingFileHandler
 import time
-from log_module import SCMLogger
+from config import AppConfig
 from parse.parse_panos import XMLParser
 from api import PanApiSession
-from scm import PanApiHandler,SCMObjectManager
+from scm import PanApiHandler, SCMObjectManager
 from scm.process import Processor
 import scm.obj as obj
 
+def setup_logging():
+    logger = logging.getLogger('')
+    logger.setLevel(logging.INFO)
+    
+    # Log rotation setup: Rotates every midnight, keeps last 2 days of logs
+    handler = TimedRotatingFileHandler('debug-log.txt', when="midnight", interval=1, backupCount=2)
+    handler.setFormatter(logging.Formatter('%(asctime)s - %(levelname)s - %(message)s'))
+    logger.addHandler(handler)
 
-def main():
-    ##time this script
-    start_time = time.time()  # Start timing
+    # Console handler
+    console_handler = logging.StreamHandler()
+    console_handler.setLevel(logging.WARNING)  # Set to capture warnings and errors
+    console_handler.setFormatter(logging.Formatter('%(asctime)s - %(levelname)s - %(message)s'))
+    logger.addHandler(console_handler)
 
-    '''max_workers is used for parallel processing of API request - speed things along'''
-    max_workers = 3  #3 seems to be a good rate limiter for posting objects
-
-    # #Authenticate
+def initialize_api_session():
     session = PanApiSession()
     session.authenticate()
+    return session
 
-    # # Build Api Handler
-    api_handler = PanApiHandler(session)
-    configure = Processor(api_handler, max_workers, obj)
+def setup_scm_object_manager(session, configure, obj_types, folder_scope):
+    return SCMObjectManager(session, folder_scope, configure, obj, obj_types)
+
+def main(config):
+    setup_logging()
+    logger = logging.getLogger(__name__)
+    begin_time = time.time()
+
+    try:
+        start_time = time.time()
+        print(f"Script started at {time.ctime(start_time)}")
+
+        api_handler = PanApiHandler(initialize_api_session())
+        configure = Processor(api_handler, config.max_workers, obj)
+        rule_order = obj.SecurityRule(api_handler)
+
+        xml_file_path = config.xml_file_path
+        parse = XMLParser(xml_file_path, None)
+        folder_scope, config_type, device_group_name = parse.parse_config_and_set_scope(xml_file_path)
+        logger.info(f'Current SCM Folder: {folder_scope}, PANOS: {config_type}, Device Group: {device_group_name}')
+
+        parse.config_type = config_type
+        parse.device_group_name = device_group_name
+        parsed_data = parse.parse_all()
+
+        scm_obj_manager = setup_scm_object_manager(api_handler, configure, config.obj_types, folder_scope)
+        scm_obj_manager.process_objects(parsed_data, folder_scope, device_group_name)
+        scm_obj_manager.process_security_rules(parsed_data, xml_file_path, rule_order, limit=config.limit)
+
+        end_time = time.time()
+        logger.info(f"Script execution time: {end_time - start_time:.2f} seconds")
+        print(f"Script ended at {time.ctime(end_time)}")
+
+    except Exception as e:
+        logger.error(f"An error occurred: {e}")
+        print(f"An error occurred: {e}")  # Print the error to the terminal
     
-    # # API Session used primarily for rule reordering
-    rule_order = obj.SecurityRule(api_handler)
-
-    # # XML FilePath
-    xml_file_path = 'pa-440.xml'  # Update with your XML file - current supports Panorama and Local FW configuration
-    # xml_file_path = 'ISC-0517-1315.xml'  # Update with your XML file - current supports Panorama and Local FW configuration
-
-    # # Create an instance of XMLParser
-    parse = XMLParser(xml_file_path, None)  # Initialize with None for config_type and device_group_name
-
-    # # Parse config and set scope
-    folder_scope, config_type, device_group_name = parse.parse_config_and_set_scope(xml_file_path)
-    print(f'Current SCM Folder:{folder_scope} using PANOS {config_type} and if Panorama, current Device Group:{device_group_name}')
-
-    # # Update XMLParser instance with the config type and device group name
-    parse.config_type = config_type
-    parse.device_group_name = device_group_name
-
-    # # Parse all data using a single method call
-    parsed_data = parse.parse_all()
-
-    # # Add obj types from /scm/obj.py for additional obj types to send to SCM
-    obj_types = [obj.Tag, obj.Address, obj.AddressGroup, obj.Service, obj.ServiceGroup, obj.ExternalDynamicList, obj.URLCategory, obj.URLAccessProfile, obj.VulnerabilityProtectionProfile, obj.AntiSpywareProfile,
-                 obj.WildFireAntivirusProfile, obj.ProfileGroup, obj.ApplicationFilter, obj.ApplicationGroup ]
-
-    # # Call SCMObjectManager class with API Session and Obj endpoints
-    scm_obj_manager = SCMObjectManager(api_handler, folder_scope, configure, obj, obj_types)
-
-    # Process objects (Tags, Addresses, AddressGroups, Services, etc.)
-    scm_obj_manager.process_objects(parsed_data, folder_scope, device_group_name)
-    '''
-    We're going to process security rules differently.. Mainly because we need to set the position(pre rulebase VS post rulebase)
-    '''
-    scm_obj_manager.process_security_rules(parsed_data, xml_file_path, rule_order, limit='10000')
-
-    # # End of Script Timing
-    end_time = time.time()  # End timing
-    total_time = end_time - start_time
-    print(f"Script execution time: {total_time:.2f} seconds")
+    complete_time = time.time()
+    print(f"Final Script execution time: {complete_time - begin_time:.2f} seconds")
 
 if __name__ == "__main__":
-    start_position = SCMLogger().mark_start_of_run_in_log()
-    main()
-    SCMLogger().print_warnings_and_errors_from_log()
-    print("Script finished! Check the terminal for warnings and errors.\nCheck debug-log.txt for further debug logs")
+    config = AppConfig()
+    main(config)

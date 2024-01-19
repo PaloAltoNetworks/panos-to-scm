@@ -39,9 +39,6 @@ class SecurityRule(PanApiHandler):
 
     def __init__(self, api_handler):
         self.api_handler = api_handler
-
-    def list(self, folder_scope, limit, position):
-        return self.api_handler.list_object(self._endpoint, folder_scope, limit, position)
     
     def move(self, rule_id, folder, destination, destination_rule=None, position="pre"):
         """Move a security rule to a specified position."""
@@ -51,42 +48,18 @@ class Address(PanApiHandler):
     "An address object"
     _endpoint = "/sse/config/v1/addresses?"
 
-    def __init__(self, api_handler):
-        self.api_handler = api_handler
-
-    def list(self, folder_scope, limit='', position=''):
-        return self.api_handler.list_object(self._endpoint, folder_scope, limit, position)
-
 class AddressGroup(PanApiHandler):
     "An address group"
     _endpoint = "/sse/config/v1/address-groups?"
     
-    def __init__(self, api_handler):
-        self.api_handler = api_handler
-
-    def list(self, folder_scope, limit='', position=''):
-        return self.api_handler.list_object(self._endpoint, folder_scope, limit, position)
-
 class Service(PanApiHandler):
     "An application group"
     _endpoint = "/sse/config/v1/services?"
-    
-    def __init__(self, api_handler):
-        self.api_handler = api_handler
-
-    def list(self, folder_scope, limit='', position=''):
-        return self.api_handler.list_object(self._endpoint, folder_scope, limit, position)
-    
+        
 class ServiceGroup(PanApiHandler):
     "A service group"
     _endpoint = "/sse/config/v1/service-groups?"
     
-    def __init__(self, api_handler):
-        self.api_handler = api_handler
-
-    def list(self, folder_scope, limit='', position=''):
-        return self.api_handler.list_object(self._endpoint, folder_scope, limit, position)
-
 class Application(PanApiHandler):
     "An application object"
     _endpoint = "/sse/config/v1/applications?"
@@ -95,21 +68,9 @@ class ApplicationFilter(PanApiHandler):
     "An application filter"
     _endpoint = "/sse/config/v1/application-filters?"
 
-    def __init__(self, api_handler):
-        self.api_handler = api_handler
-
-    def list(self, folder_scope, limit='', position=''):
-        return self.api_handler.list_object(self._endpoint, folder_scope, limit, position)
-
 class ApplicationGroup(PanApiHandler):
     "An application group"
     _endpoint = "/sse/config/v1/application-groups?"
-
-    def __init__(self, api_handler):
-        self.api_handler = api_handler
-
-    def list(self, folder_scope, limit='', position=''):
-        return self.api_handler.list_object(self._endpoint, folder_scope, limit, position)
 
 class ApplicationOverrideRule(PanApiHandler):
     "An application override rule"
@@ -131,12 +92,6 @@ class ExternalDynamicList(PanApiHandler):
     "An external dynamic list"
     _endpoint = "/sse/config/v1/external-dynamic-lists?"
 
-    def __init__(self, api_handler):
-        self.api_handler = api_handler
-
-    def list(self, folder_scope, limit='', position=''):
-        return self.api_handler.list_object(self._endpoint, folder_scope, limit, position)
-
 class HipObject(PanApiHandler):
     "A HIP object"
     _endpoint = "/sse/config/v1/hip-objects?"
@@ -157,21 +112,9 @@ class Tag(PanApiHandler):
     "A tag object"
     _endpoint = "/sse/config/v1/tags?"
 
-    def __init__(self, api_handler):
-        self.api_handler = api_handler
-
-    def list(self, folder_scope, limit='', position=''):
-        return self.api_handler.list_object(self._endpoint, folder_scope, limit, position)
-
 class URLCategory(PanApiHandler):
     "A custom URL category"
     _endpoint = "/sse/config/v1/url-categories?"
-
-    def __init__(self, api_handler):
-        self.api_handler = api_handler
-
-    def list(self, folder_scope, limit='', position=''):
-        return self.api_handler.list_object(self._endpoint, folder_scope, limit, position)
 
 class URLFilteringCategory(PanApiHandler):
     "A predefined URL category"
@@ -180,12 +123,6 @@ class URLFilteringCategory(PanApiHandler):
 class AntiSpywareProfile(PanApiHandler):
     "An anti-spyware profile"
     _endpoint = "/sse/config/v1/anti-spyware-profiles?"
-
-    def __init__(self, api_handler):
-        self.api_handler = api_handler
-
-    def list(self, folder_scope, limit='', position=''):
-        return self.api_handler.list_object(self._endpoint, folder_scope, limit, position)
 
 class AntiSpywareSignature(PanApiHandler):
     "An anti-spyware signature"
@@ -219,31 +156,13 @@ class ProfileGroup(PanApiHandler):
     "A profile group"
     _endpoint = "/sse/config/v1/profile-groups?"
 
-    def __init__(self, api_handler):
-        self.api_handler = api_handler
-
-    def list(self, folder_scope, limit='', position=''):
-        return self.api_handler.list_object(self._endpoint, folder_scope, limit, position)
-
 class URLAccessProfile(PanApiHandler):
     "A URL access profile"
     _endpoint = "/sse/config/v1/url-access-profiles?"
-
-    def __init__(self, api_handler):
-        self.api_handler = api_handler
-
-    def list(self, folder_scope, limit='', position=''):
-        return self.api_handler.list_object(self._endpoint, folder_scope, limit, position)
     
 class VulnerabilityProtectionProfile(PanApiHandler):
     "A vulnerability protection profile"
     _endpoint = "/sse/config/v1/vulnerability-protection-profiles?"
-
-    def __init__(self, api_handler):
-        self.api_handler = api_handler
-
-    def list(self, folder_scope, limit='', position=''):
-        return self.api_handler.list_object(self._endpoint, folder_scope, limit, position)
 
 class VulnerabilityProtectionSignature(PanApiHandler):
     "A vulnerability protection signature"
@@ -252,9 +171,3 @@ class VulnerabilityProtectionSignature(PanApiHandler):
 class WildFireAntivirusProfile(PanApiHandler):
     "A WildFire antivirus profile"
     _endpoint = "/sse/config/v1/wildfire-anti-virus-profiles?"
-
-    def __init__(self, api_handler):
-        self.api_handler = api_handler
-
-    def list(self, folder_scope, limit='', position=''):
-        return self.api_handler.list_object(self._endpoint, folder_scope, limit, position)

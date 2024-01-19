@@ -18,10 +18,15 @@ client_secret: abc12345-52b6-405c-a754-c2fffffb3561
 tsg_id: 123456789
 ```
 
+Update /config/__init__ with your configuration options<br />
+Update xml_file_path with your XML file export of Panorama or Local Firewall running config<br />
+Decide what obj_types you want to use<br />
+
 ## Main.py config
-Update xml_file_path from main() with your XML file export of Panorama or Local Firewall running config<br />
-Decide what obj_types you want to use. Script will GET all objects, rules, process your XML and post new entries.<br />
+Script will GET all objects, rules, process your XML and post new entries.<br />
 Also handles rule ordering if something gets out of order(order determined by XML)<br />
+Script currently will not update rules or objects if value has changed - example, address-group1 has members A,B,C in SCM<br />
+If PANOS config has A,B,C,D - it will not update and PUT D into it.. I'm considering it<br />
 
 ## Currently Support Features:
 

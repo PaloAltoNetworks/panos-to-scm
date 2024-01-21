@@ -6,8 +6,8 @@ import time
 from config import AppConfig
 from parse.parse_panos import XMLParser
 from api import PanApiSession
-from scm import PanApiHandler, SCMObjectManager
-from scm.process import Processor
+from scm import PanApiHandler
+from scm.process import Processor, SCMObjectManager
 import scm.obj as obj
 
 def setup_logging():
@@ -15,7 +15,7 @@ def setup_logging():
     logger.setLevel(logging.INFO)
     
     # Log rotation setup: Rotates every midnight, keeps last 2 days of logs
-    handler = TimedRotatingFileHandler('debug-log.txt', when="midnight", interval=1, backupCount=2)
+    handler = TimedRotatingFileHandler('debug-log.txt', utc= True, when="midnight", interval=1, backupCount=2)
     handler.setFormatter(logging.Formatter('%(asctime)s - %(levelname)s - %(message)s'))
     logger.addHandler(handler)
 
@@ -50,7 +50,12 @@ def main(config):
         parse = XMLParser(xml_file_path, None)
         folder_scope, config_type, device_group_name = parse.parse_config_and_set_scope(xml_file_path)
         logger.info(f'Current SCM Folder: {folder_scope}, PANOS: {config_type}, Device Group: {device_group_name}')
-
+        # Prompt user for confirmation
+        response = input(f'Confirm {config.obj_types} go into SCM Folder: {folder_scope} (yes/no): ').strip().lower()
+        if response not in ['yes', 'y']:
+            logger.error("User aborted the operation. Exiting.")
+            return  # Exit the script if user does not confirm
+        
         parse.config_type = config_type
         parse.device_group_name = device_group_name
         parsed_data = parse.parse_all()

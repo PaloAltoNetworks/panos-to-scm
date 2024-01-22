@@ -1,5 +1,7 @@
 # /project/scm/obj.py
-''' Most of this came from PANAPI and has been modified - https://github.com/PaloAltoNetworks/panapi/ '''
+'''
+Most of this came from PANAPI and has been modified - https://github.com/PaloAltoNetworks/panapi/
+'''
 
 '''
 ISC License
@@ -34,13 +36,6 @@ class PanApiHandler:
 
 class SecurityRule(PanApiHandler):
     _endpoint = "/sse/config/v1/security-rules?"
-
-    def __init__(self, api_handler):
-        self.api_handler = api_handler
-    
-    def move(self, rule_id, folder, destination, destination_rule=None, position="pre"):
-        """Move a security rule to a specified position."""
-        return self.api_handler.move_security_rule(rule_id, folder, destination, destination_rule, position)
 
 class Address(PanApiHandler):
     "An address object"

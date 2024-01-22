@@ -59,15 +59,15 @@ class Processor:
         print(f"Time taken for creating {message}: {end_time_objects - start_time_objects:.2f} seconds\n")
         return created_count, exists_count, error_count
 
-    def create_objects(self, scope, start_index, object_type, data, max_workers, object_name_field='name', extra_query_params=''):
+    def create_objects(self, scope, start_index, endpoint, data, max_workers, object_name_field='name', extra_query_params=''):
         """ Create multiple objects via the API in parallel. """
-        endpoint = f"{object_type}{extra_query_params}&folder={scope}"
+        endpoint = f"{endpoint}{extra_query_params}&folder={scope}"
         results = []
 
         with ThreadPoolExecutor(max_workers=max_workers) as executor:
             print(f'Running with {max_workers} workers.')
             logging.info(f'Running with {max_workers} workers.')
-            futures = [executor.submit(self.api_handler.create_object, endpoint, item_data, retries=2, delay=0.5) for item_data in data[start_index:]]
+            futures = [executor.submit(self.api_handler.post, endpoint, item_data, retries=2, delay=0.5) for item_data in data[start_index:]]
             for future in as_completed(futures):
                 result = future.result()
                 results.append(result)
@@ -76,7 +76,7 @@ class Processor:
 
         return results
 
-    def reorder_rules(self, security_rule_obj, folder_scope, original_rules, current_rules, limit, position):
+    def reorder_rules(self, obj_type, endpoint, folder_scope, original_rules, current_rules, limit, position):
         current_rule_ids = {rule['name']: rule['id'] for rule in current_rules}
         current_order = [rule['name'] for rule in current_rules]
         desired_order = [rule['name'] for rule in original_rules if rule['name'] in current_rule_ids]
@@ -91,32 +91,34 @@ class Processor:
             for i, rule_name in enumerate(desired_order[:-1]):
                 if current_order.index(rule_name) > current_order.index(desired_order[i + 1]):
                     rule_id = current_rule_ids[rule_name]
-                    target_rule_id = current_rule_ids[desired_order[i + 1]]
-                    moves.append((rule_id, target_rule_id))
-                    print(f"Prepared move: Rule '{rule_name}' (ID: {rule_id}) before '{desired_order[i + 1]}' (ID: {target_rule_id})")
+                    destination_rule_id = current_rule_ids[desired_order[i + 1]]
+                    moves.append((rule_id, destination_rule_id))
+                    print(f"Prepared move: Rule '{rule_name}' (ID: {rule_id}) before '{desired_order[i + 1]}' (ID: {destination_rule_id})")
 
             if not moves:
                 break  # Exit loop if no moves are required
 
             with ThreadPoolExecutor(max_workers=self.max_workers) as executor:
                 print(f'Currently utilizing {self.max_workers} workers.')
-                futures = [executor.submit(security_rule_obj.move, rule_id, folder_scope, "before", target_rule_id, position) for rule_id, target_rule_id in moves]
+                futures = [executor.submit(self.api_handler.move, f"{endpoint}/{rule_id}:move", rule_id, destination_rule_id, position, destination= "before") for rule_id, destination_rule_id in moves]
                 for future in futures:
                     future.result()
 
             # Refetch the rules to update the current order
-            all_current_rules = self.api_handler.list_object(self.obj.SecurityRule.get_endpoint(), folder_scope, limit, position)
+            all_current_rules = self.api_handler.list(obj_type.get_endpoint(), folder_scope, limit, position)
             current_rules = [rule for rule in all_current_rules if rule['folder'] == folder_scope]
             current_order = [rule['name'] for rule in current_rules if rule['name'] != 'default']
 
-    def check_and_reorder_rules(self, security_rule_obj, folder_scope, original_rules, limit, position):
+    def check_and_reorder_rules(self, sec_obj, folder_scope, original_rules, limit, position):
         rules_in_correct_order = False
         start_time_reordering = time.time()
 
         while not rules_in_correct_order:
             # Fetch current rules from SCM
-            endpoint = self.obj.SecurityRule.get_endpoint()
-            all_current_rules = self.api_handler.list_object(endpoint, folder_scope, limit, position)
+            # endpoint = self.obj.SecurityRule.get_endpoint()
+            endpoint = sec_obj.get_endpoint()
+            all_current_rules = self.api_handler.list(endpoint, folder_scope, limit, position)
+            endpoint = endpoint.replace('?','')
             current_rules = [rule for rule in all_current_rules if rule['folder'] == folder_scope]
             current_order = [rule['name'] for rule in current_rules if rule['name'] != 'default']
 
@@ -126,7 +128,7 @@ class Processor:
             # Check if reordering is needed
             if current_order != desired_order:
                 print("Reordering rules now..")
-                moves_made = self.reorder_rules(security_rule_obj, folder_scope, original_rules, current_rules, limit, position)
+                moves_made = self.reorder_rules(sec_obj, endpoint, folder_scope, original_rules, current_rules, limit, position)
                 rules_in_correct_order = not moves_made
             else:
                 rules_in_correct_order = True
@@ -145,22 +147,23 @@ class RuleProcessor:
         return current_rule_names == desired_rule_names
     
 class SCMObjectManager:
-    def __init__(self, api_handler, folder_scope, configure, obj_module, obj_types):
+    def __init__(self, api_handler, folder_scope, configure, obj_module, obj_types, sec_obj):
         self.api_handler = api_handler
         self.folder_scope = folder_scope
         self.configure = configure
         self.obj = obj_module
-        self.obj_types = obj_types 
+        self.obj_types = obj_types
+        self.sec_obj = sec_obj
 
     def fetch_objects(self, obj_type, limit='10000', position=''):
         endpoint = obj_type._endpoint
-        all_objects = self.api_handler.list_object(endpoint, self.folder_scope, limit, position)
+        all_objects = self.api_handler.list(endpoint, self.folder_scope, limit, position)
         return set(o['name'] for o in all_objects)
 
     def fetch_rules(self, obj_type, limit='10000', position=''):
         endpoint = obj_type._endpoint
 
-        all_objects = self.api_handler.list_object(endpoint, self.folder_scope, limit, position)
+        all_objects = self.api_handler.list(endpoint, self.folder_scope, limit, position)
         return [o for o in all_objects if 'name' in o and 'folder' in o]
 
     def process_objects(self, parsed_data, folder_scope, device_group_name, max_workers=8, limit='10000'):
@@ -173,7 +176,7 @@ class SCMObjectManager:
         # Post new entries to SCM
         self.post_new_entries(new_entries, folder_scope, device_group_name)
 
-    def get_current_objects(self, obj_types, max_workers=8, limit='10000', **kwargs):
+    def get_current_objects(self, obj_types, max_workers=6, limit='10000', **kwargs):
         print(f"Running with {max_workers} workers.")  # Add this line to print the number of workers
 
         with ThreadPoolExecutor(max_workers=max_workers) as executor:
@@ -227,10 +230,10 @@ class SCMObjectManager:
             else:
                 print(f"Warning: {entry_type_name} not found in new entries.")
 
-    def process_security_rules(self, parsed_data, xml_file_path, rule_order, limit='10000'):
+    def process_security_rules(self, api_handler, sec_obj, parsed_data, xml_file_path, limit='10000'):
         # Logic to process security rules
-        pre_rules = self.fetch_rules(self.obj.SecurityRule, limit, position='pre')
-        post_rules = self.fetch_rules(self.obj.SecurityRule, limit, position='post')
+        pre_rules = self.fetch_rules(sec_obj, limit, position='pre')
+        post_rules = self.fetch_rules(sec_obj, limit, position='post')
         current_rules_pre = [rule for rule in pre_rules if rule['folder'] == self.folder_scope]
         current_rules_post = [rule for rule in post_rules if rule['folder'] == self.folder_scope]
         current_rule_names_pre = set(rule['name'] for rule in current_rules_pre)
@@ -248,19 +251,20 @@ class SCMObjectManager:
         for rules, extra_query_param, rule_type_name in rule_types:
             if rules:
                 self.configure.set_max_workers(4)
-                self.configure.post_entries(self.folder_scope, rules, self.obj.SecurityRule, extra_query_params=extra_query_param)
+                self.configure.post_entries(self.folder_scope, rules, sec_obj, extra_query_params=extra_query_param)
             else:
                 message = f"No new {rule_type_name} to create from XML: {xml_file_path}"
                 print(message)
                 logging.info(message)
 
         # Reorder rules if necessary
-        self.reorder_rules_if_needed(security_rule_pre_entries, current_rules_pre, rule_order, position='pre')
-        self.reorder_rules_if_needed(security_rule_post_entries, current_rules_post, rule_order, position='post')
+        self.reorder_rules_if_needed(sec_obj, security_rule_pre_entries, current_rules_pre, api_handler, position='pre')
+        self.reorder_rules_if_needed(sec_obj, security_rule_post_entries, current_rules_post, api_handler, position='post')
 
-    def reorder_rules_if_needed(self, security_rule_entries, current_rules, rule_order, position):
-        # Use self.obj.SecurityRule to initialize rule_order if not passed
-        rule_order = rule_order or self.obj.SecurityRule(self.api_handler)
+
+    def reorder_rules_if_needed(self, sec_obj, security_rule_entries, current_rules, api_handler, position):
+        # Use self.obj.SecurityRule to initialize api_handler if not passed
+        api_handler = api_handler
         if not RuleProcessor.is_rule_order_correct(current_rules, security_rule_entries):
             self.configure.set_max_workers(4)
-            self.configure.check_and_reorder_rules(rule_order, self.folder_scope, security_rule_entries, limit='10000', position=position)
+            self.configure.check_and_reorder_rules(sec_obj, self.folder_scope, security_rule_entries, limit='10000', position=position)

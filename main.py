@@ -30,8 +30,8 @@ def initialize_api_session():
     session.authenticate()
     return session
 
-def setup_scm_object_manager(session, configure, obj_types, folder_scope):
-    return SCMObjectManager(session, folder_scope, configure, obj, obj_types)
+def setup_scm_object_manager(session, configure, obj_types, sec_obj, folder_scope):
+    return SCMObjectManager(session, folder_scope, configure, obj, obj_types, sec_obj)
 
 def main(config):
     setup_logging()
@@ -44,25 +44,19 @@ def main(config):
 
         api_handler = PanApiHandler(initialize_api_session())
         configure = Processor(api_handler, config.max_workers, obj)
-        rule_order = obj.SecurityRule(api_handler)
 
         xml_file_path = config.xml_file_path
         parse = XMLParser(xml_file_path, None)
         folder_scope, config_type, device_group_name = parse.parse_config_and_set_scope(xml_file_path)
         logger.info(f'Current SCM Folder: {folder_scope}, PANOS: {config_type}, Device Group: {device_group_name}')
-        # Prompt user for confirmation
-        response = input(f'Confirm {config.obj_types} go into SCM Folder: {folder_scope} (yes/no): ').strip().lower()
-        if response not in ['yes', 'y']:
-            logger.error("User aborted the operation. Exiting.")
-            return  # Exit the script if user does not confirm
         
         parse.config_type = config_type
         parse.device_group_name = device_group_name
         parsed_data = parse.parse_all()
 
-        scm_obj_manager = setup_scm_object_manager(api_handler, configure, config.obj_types, folder_scope)
+        scm_obj_manager = setup_scm_object_manager(api_handler, configure, config.obj_types, config.sec_obj, folder_scope)
         scm_obj_manager.process_objects(parsed_data, folder_scope, device_group_name)
-        scm_obj_manager.process_security_rules(parsed_data, xml_file_path, rule_order, limit=config.limit)
+        scm_obj_manager.process_security_rules(api_handler, config.sec_obj, parsed_data, xml_file_path, limit=config.limit)
 
         end_time = time.time()
         logger.info(f"Script execution time: {end_time - start_time:.2f} seconds")

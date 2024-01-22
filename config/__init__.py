@@ -1,3 +1,4 @@
+# /project/config/__init__.py
 import scm.obj as obj
 
 class AppConfig:
@@ -7,8 +8,9 @@ class AppConfig:
 
         # Define the path to the XML file that contains the data to be processed
         self.xml_file_path = 'ISC-0517-1315.xml'  # Update as needed
+        # self.xml_file_path = 'pa-440.xml'  # Update as needed
 
-        # Define the limit for how much objects to list..
+        # Define the limit for rule processing
         self.limit = '10000'
 
         # List of object types to be processed, as defined in your main.py
@@ -19,6 +21,7 @@ class AppConfig:
             obj.AntiSpywareProfile, obj.WildFireAntivirusProfile, 
             obj.ProfileGroup, obj.ApplicationFilter, obj.ApplicationGroup
         ]
+        self.sec_obj = obj.SecurityRule
 
         # Add any other configuration settings that your script requires
         # For example:

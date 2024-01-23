@@ -31,12 +31,15 @@ Update xml_file_path with your XML file export of Panorama or Local Firewall run
 Decide what obj_types you want to use<br />
 
 ## Main.py config
-Script will GET all objects, rules, process your XML and post new entries.<br />
-Also handles rule ordering if something gets out of order(order determined by XML)<br />
-Script currently will  update rules or objects if value has changed - example, address-group1 has members A,B,C in SCM<br />
+If you run main.py as is, it'll ask if you want to use static XML file (controlled at /config/__init__.py<br />
+Otherwise, it'll get the full running config from your PANOS device(controlled at $HOME/.panapi/config.yml)<br />
+Script will Parse all XML and create dictionary of object types and security rules<br />
+Script will GET all objects and rules from SCM and then compare your XML and post new entries.<br />
+Also handles rule ordering if something gets out of order(order determined by XML) which occurs in parallel processing<br />
+Script currently will update rules or objects if value has changed - example, address-group1 has members A,B,C in SCM<br />
 If PANOS config has A,B,C,D - it will  update and PUT D into it..<br />
 
-## Currently Support Features:
+## Currently Supported Features:
 
 -External Dynamic List - IP and URL.. Missing Certificate Profile for now<br />
 -Custom URL Categories<br />

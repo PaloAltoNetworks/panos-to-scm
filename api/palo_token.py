@@ -28,7 +28,15 @@ class PaloToken:
             print("No existing token found for PANOS. Fetching a new API token...")
             payload = {'type': 'keygen', 'user': self.username, 'password': self.password}
             headers = {'Content-Type': 'application/x-www-form-urlencoded'}
-            response = requests.post(self.ngfw_url + "?type=keygen", headers=headers, data=payload, verify=False)
+            try:
+                response = self.make_request(headers, payload)
+            except SSLError as e:
+                user_input = input(f"Untrusted certificate from {self.ngfw_url} - continue? (yes/no): ").strip().lower()
+                if user_input == 'yes':
+                    response = self.make_request(headers, payload, verify=False)
+                else:
+                    raise e
+
             if response.status_code == 200:
                 root = ET.fromstring(response.content)
                 self.token = root.find('.//key').text
@@ -39,3 +47,6 @@ class PaloToken:
         else:
             print("Using existing PANOS API token from config file.")
         return self.token
+
+    def make_request(self, headers, payload, verify=True):
+        return requests.post(self.ngfw_url + "?type=keygen", headers=headers, data=payload, verify=verify)

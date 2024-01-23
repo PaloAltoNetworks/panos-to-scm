@@ -11,11 +11,18 @@ Windows: `C:\users\<username>\.panapi\config.yml`<br />
 MacOS: `/Users/<username>/.panapi/config.yml`<br />
 Linux: `/home/<username>/.panapi/config.yml`<br />
 
+Additionally add your PANOS NGFW/Panorama URL, Password and API Key<br />
+If you don't have API key for PANOS, the script will fetch API key and update config file<br />
+Optionally, you can ommit username/password and only apply the API key<br />
+
 ```yaml
 ---
 client_id: policy-import@123456789.iam.panserviceaccount.com
 client_secret: abc12345-52b6-405c-a754-c2fffffb3561
 tsg_id: 123456789
+palo_alto_ngfw_url: https://10.255.255.4/api/
+palo_alto_password: Password123456!@#
+palo_alto_username: admin
 ```
 
 Update /config/__init__ with your configuration options<br />
@@ -25,8 +32,8 @@ Decide what obj_types you want to use<br />
 ## Main.py config
 Script will GET all objects, rules, process your XML and post new entries.<br />
 Also handles rule ordering if something gets out of order(order determined by XML)<br />
-Script currently will not update rules or objects if value has changed - example, address-group1 has members A,B,C in SCM<br />
-If PANOS config has A,B,C,D - it will not update and PUT D into it.. I'm considering it<br />
+Script currently will  update rules or objects if value has changed - example, address-group1 has members A,B,C in SCM<br />
+If PANOS config has A,B,C,D - it will  update and PUT D into it..<br />
 
 ## Currently Support Features:
 

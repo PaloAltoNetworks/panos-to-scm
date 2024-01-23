@@ -55,7 +55,7 @@ def main(config):
         parsed_data = parse.parse_all()
 
         scm_obj_manager = setup_scm_object_manager(api_handler, configure, config.obj_types, config.sec_obj, folder_scope)
-        scm_obj_manager.process_objects(parsed_data, folder_scope, device_group_name)
+        scm_obj_manager.process_objects(parsed_data, folder_scope, device_group_name, max_workers=6)
         scm_obj_manager.process_security_rules(api_handler, config.sec_obj, parsed_data, xml_file_path, limit=config.limit)
 
         end_time = time.time()

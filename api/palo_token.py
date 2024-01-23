@@ -3,6 +3,7 @@ import yaml
 import os
 import urllib3
 import xml.etree.ElementTree as ET
+from requests.exceptions import SSLError
 
 class PaloToken:
     def __init__(self, config_path='~/.panapi/config.yml'):

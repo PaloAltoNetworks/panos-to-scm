@@ -340,7 +340,8 @@ class XMLParser:
 
         for profile_entry in self.root.findall(base_xpath):
             profile_name = profile_entry.get('name')
-            packet_capture = profile_entry.get('packet-capture').text.replace('enabled', 'True') if profile_entry.get('packet-capture') is not None else "False"
+            # packet_capture = profile_entry.get('packet-capture').text.replace('enabled', 'True') if profile_entry.get('packet-capture') is not None else "False"
+            packet_capture = profile_entry.find('packet-capture') is not None and profile_entry.find('packet-capture').text.lower() == 'enabled'
             description_element = profile_entry.find('description')
             description = description_element.text if description_element is not None else None
 

@@ -23,6 +23,7 @@ tsg_id: 123456789
 palo_alto_ngfw_url: https://10.255.255.4/api/
 palo_alto_password: Password123456!@#
 palo_alto_username: admin
+palo_api_token: LUFRPT1tMlltKzFxamhTVnliTnN3Z1ZYS1JESk8yS2c9bUdERnl2bkk3ZzdVeGlGYkJRQXhZTmd1cE5GN2xTKzM3TTFlN3JlTmx1bDRmenhVMUtPWUE4WTZyVFJJNnV3Sg==
 ```
 
 Update /config/__init__ with your configuration options<br />

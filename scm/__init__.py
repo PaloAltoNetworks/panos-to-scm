@@ -31,148 +31,87 @@ class PanApiHandler:
         """ Ensure the session token is valid. """
         self.session.ensure_valid_token()
 
-    def list(self, endpoint, folder_scope, limit, position):
-        """Retrieve a list of objects."""
-
+    def get(self, endpoint, retries=1, delay=0.5, **kwargs):
+        """ Retrieve objects or a specific object from the API using GET method. """
         self.ensure_valid_token()
 
-        if position:
-            url = f"{self.BASE_URL}{endpoint}position={position}&folder={folder_scope}&limit={limit}&offset=0"
-        else:
-            url = f"{self.BASE_URL}{endpoint}folder={folder_scope}&limit={limit}&offset=0"
-        print(url)
+        # Constructing the URL with additional query parameters
+        query_params = '&'.join([f'{key}={value}' for key, value in kwargs.items()])
+        url = f"{self.BASE_URL}{endpoint}{query_params}"
+        print(f'Fetching items: {url}')
 
-        try:
-            response = self.session.get(url=url)
-        except Exception as err:
-            logging.error(f"Error in list_objects: {err}")
-            return []  # Return empty list in case of exception
-
-        if response.status_code == 200:
-            return response.json().get("data", [])
-        else:
-            logging.error(f"Error retrieving list: Status Code {response.status_code}, Response: {response.text}")
-            return []  # Return empty list in case of non-200 response
-
-    def move(self, endpoint, rule_id, destination_rule_id=None, position="pre", destination="before"):
-        """Move a security rule to a specified position."""
-        url = f'{self.BASE_URL}{endpoint}'
-        print(f'URL is: {url}')
-        payload = {
-            "destination": destination,
-            "rulebase": position
-        }
-        if destination_rule_id is not None:
-            payload["destination_rule"] = destination_rule_id
-
-        print(f'Payload is: {payload}')
-        self.ensure_valid_token()  # Ensure token is valid before making the request
-
-        response = self.session.post(url, json=payload)
-        if response.status_code != 200:
-            logging.error(f"Error moving rule {rule_id}: {response.text}")
-            return False  # Indicates failure
-        else:
-            logging.info(f"Successfully moved rule {rule_id}")
-            return True  # Indicates success
-
-    def get(self, endpoint, retries=1, delay=0.5):
-        """ Retrieve a specific object from the API. """
-        url = f"{self.BASE_URL}{endpoint}"
         for attempt in range(retries + 1):
             try:
-                self.ensure_valid_token()
                 response = self.session.get(url, timeout=10)
                 if response.status_code == 200:
-                    return response.json()['data']
+                    return response.json().get('data')
                 else:
-                    logging.error(f"API Error when retrieving object: {response.json()}, Status Code: {response.status_code}")
+                    logging.error(f"API Error: {response.json()}, Status Code: {response.status_code}")
                     if attempt < retries:
                         time.sleep(delay)
             except Exception as e:
-                logging.error(f"Exception occurred when retrieving object: {str(e)}")
+                logging.error(f"Exception: {str(e)}")
                 if attempt < retries:
                     time.sleep(delay)
 
-        return []
+        return None
 
     def post(self, endpoint, item_data, retries=2, delay=0.5):
-        """ Create an object via the API. """
+        """ Create or update an object via the API. """
         url = f"{self.BASE_URL}{endpoint}"
-        # print(url)
         for attempt in range(retries + 1):
             try:
                 self.ensure_valid_token()
                 response = self.session.post(url, json=item_data, timeout=10)
-                # print(item_data)
-                if response.status_code == 201:
-                    return 'This object created', item_data['name']
+                if response.status_code in [200, 201]:
+                    # Object created or updated successfully
+                    return {'status': 'success', 'message': 'Object processed', 'name': item_data.get('name')}
                 else:
+                    # Handle API error responses
                     error_response = response.json()
-                    if response.status_code == 400:
-                        if "object already exists" in str(error_response).lower():
-                            logging.info(f"Object already exists for '{item_data.get('name', '')}'")
-                            return 'This object exists', item_data['name']
-                        if "is not a valid reference" in str(error_response).lower():
-                            logging.warning(f"Invalid reference in object '{item_data.get('name', '')}'")
-                            time.sleep(delay)
-                            continue
-                        if "max retries exceeded" in str(error_response).lower():
-                            logging.warning(f"You might be hitting rate limiter with object '{item_data.get('name', '')}")
-                            time.sleep(delay)
-                            continue
-                        else:
-                            logging.error(f"API Error for '{item_data.get('name', '')}': Response: {response.text}, Status Code: {response.status_code}")
-                    return 'error creating object', item_data['name'], "Error: Object creation failed"
+                    if response.status_code == 400 and "object already exists" in str(error_response).lower():
+                        logging.info(f"Object already exists for '{item_data.get('name', '')}'")
+                        return {'status': 'exists', 'name': item_data.get('name'), 'response': error_response}
+                    elif attempt < retries:
+                        logging.warning(f"Retrying due to error for '{item_data.get('name', '')}': {response.text}")
+                        time.sleep(delay)
+                        continue
+                    else:
+                        logging.error(f"API Error for '{item_data.get('name', '')}': Response: {response.text}, Status Code: {response.status_code}")
+                        return {'status': 'error', 'message': 'Error: Object creation failed', 'name': item_data.get('name'), 'response': error_response}
             except Exception as e:
                 logging.error(f"Exception occurred for '{item_data.get('name', '')}': {str(e)}")
                 if attempt < retries:
                     time.sleep(delay)
                 else:
-                    return 'error creating object', item_data['name'], f"Exception: {str(e)}"
+                    return {'status': 'exception', 'message': f"Exception: {str(e)}", 'name': item_data.get('name')}
 
-        return 'error creating object', item_data['name'], "Failed after retries"
+        return {'status': 'failed', 'message': 'Failed after retries', 'name': item_data.get('name')}
 
     def put(self, endpoint, item_data, retries=2, delay=0.5):
-        """ Create an object via the API. """
+        """ Update an object via the API. """
         url = f"{self.BASE_URL}{endpoint}"
-        # print(url)
         for attempt in range(retries + 1):
             try:
                 self.ensure_valid_token()
                 response = self.session.put(url, json=item_data, timeout=10)
-                # print(item_data)
-                if response.status_code == 201:
-                    return 'This object created', item_data['name']
+                if response.status_code in [200, 204]:
+                    return {'status': 'success', 'message': 'Object updated', 'name': item_data.get('name')}
                 else:
                     error_response = response.json()
-                    if response.status_code == 400:
-                        if "object already exists" in str(error_response).lower():
-                            logging.info(f"Object already exists for '{item_data.get('name', '')}'")
-                            return 'This object exists', item_data['name']
-                        if "is not a valid reference" in str(error_response).lower():
-                            logging.warning(f"Invalid reference in object '{item_data.get('name', '')}'")
-                            time.sleep(delay)
-                            continue
-                        if "max retries exceeded" in str(error_response).lower():
-                            logging.warning(f"You might be hitting rate limiter with object '{item_data.get('name', '')}")
-                            time.sleep(delay)
-                            continue
-                        else:
-                            logging.error(f"API Error for '{item_data.get('name', '')}': Response: {response.text}, Status Code: {response.status_code}")
-                    return 'error creating object', item_data['name'], "Error: Object creation failed"
+                    logging.error(f"API Error for '{item_data.get('name', '')}': {error_response}, Status Code: {response.status_code}")
+                    if attempt < retries:
+                        time.sleep(delay)
+                    else:
+                        return {'status': 'error', 'message': 'Error: Object update failed', 'name': item_data.get('name'), 'response': error_response}
             except Exception as e:
                 logging.error(f"Exception occurred for '{item_data.get('name', '')}': {str(e)}")
                 if attempt < retries:
                     time.sleep(delay)
                 else:
-                    return 'error creating object', item_data['name'], f"Exception: {str(e)}"
+                    return {'status': 'exception', 'message': f"Exception: {str(e)}", 'name': item_data.get('name')}
 
-        return 'error creating object', item_data['name'], "Failed after retries"
-
-    def update_object(self, endpoint, item_data, retries=1, delay=0.5):
-        """ Update an object via the API. """
-        # Similar logic to create_object, but using session.put
+        return {'status': 'failed', 'message': 'Failed after retries', 'name': item_data.get('name')}
 
     def delete_object(self, endpoint, retries=1, delay=0.5):
         """ Delete an object via the API. """

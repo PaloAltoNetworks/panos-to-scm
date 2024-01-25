@@ -14,16 +14,16 @@ import scm.obj as obj
 
 def setup_logging():
     logger = logging.getLogger('')
-    logger.setLevel(logging.INFO)
+    logger.setLevel(logging.DEBUG)
     
     # Log rotation setup: Rotates every midnight, keeps last 2 days of logs
-    handler = TimedRotatingFileHandler('debug-log.txt', utc= True, when="midnight", interval=1, backupCount=2)
+    handler = TimedRotatingFileHandler('debug-log.txt', utc= True, when="midnight", interval=1, backupCount=1)
     handler.setFormatter(logging.Formatter('%(asctime)s - %(levelname)s - %(message)s'))
     logger.addHandler(handler)
 
     # Console handler
     console_handler = logging.StreamHandler()
-    console_handler.setLevel(logging.WARNING)  # Set to capture warnings and errors
+    console_handler.setLevel(logging.INFO)  # Captures and prints INFO, WARNING, ERROR, CRITICAL.
     console_handler.setFormatter(logging.Formatter('%(asctime)s - %(levelname)s - %(message)s'))
     logger.addHandler(console_handler)
 
@@ -86,10 +86,9 @@ def main(config):
 
     except Exception as e:
         logger.error(f"An error occurred: {e}")
-        print(f"An error occurred: {e}")  # Print the error to the terminal
     
     complete_time = time.time()
-    print(f"Final Script execution time: {complete_time - begin_time:.2f} seconds")
+    logger.info(f"Final Script execution time: {complete_time - begin_time:.2f} seconds")
 
 if __name__ == "__main__":
     config = AppConfig()

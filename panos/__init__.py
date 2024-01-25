@@ -1,5 +1,6 @@
 import requests
 import xml.etree.ElementTree as ET
+import logging
 from requests.exceptions import SSLError
 
 class PaloConfigManager:
@@ -23,7 +24,7 @@ class PaloConfigManager:
             root = ET.fromstring(response.content)
             config_element = root.find('.//config')
             if config_element is not None:
-                print(f'Successfully downloaded XML configuration from: {self.base_url}')
+                logging.info(f'Successfully downloaded XML configuration from: {self.base_url}')
                 return ET.tostring(config_element, encoding='unicode')
             else:
                 raise Exception("No config element found in the response")

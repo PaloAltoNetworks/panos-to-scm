@@ -61,7 +61,7 @@ def main(config):
   
     try:
         start_time = time.time()
-        print(f"Script started at {time.ctime(start_time)}")
+        logging.info(f"Script started at {time.ctime(start_time)}")
 
         api_handler = PanApiHandler(initialize_api_session())
         configure = Processor(api_handler, config.max_workers, obj)
@@ -82,7 +82,7 @@ def main(config):
 
         end_time = time.time()
         logger.info(f"Script execution time: {end_time - start_time:.2f} seconds")
-        print(f"Script ended at {time.ctime(end_time)}")
+        logging.info(f"Script ended at {time.ctime(end_time)}")
 
     except Exception as e:
         logger.error(f"An error occurred: {e}")

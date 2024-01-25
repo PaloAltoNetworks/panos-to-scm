@@ -2,6 +2,7 @@ import requests
 import yaml
 import os
 import urllib3
+import logging
 import xml.etree.ElementTree as ET
 from requests.exceptions import SSLError
 
@@ -22,11 +23,11 @@ class PaloToken:
     def save_config(self):
         with open(self.config_path, 'w') as file:
             yaml.dump(self.config, file)
-            print("Token saved to config file.")
+            logging.info("Token saved to config file.")
 
     def retrieve_token(self):
         if not self.token:
-            print("No existing token found for PANOS. Fetching a new API token...")
+            logging.info("No existing token found for PANOS. Fetching a new API token...")
             payload = {'type': 'keygen', 'user': self.username, 'password': self.password}
             headers = {'Content-Type': 'application/x-www-form-urlencoded'}
             try:
@@ -46,7 +47,7 @@ class PaloToken:
             else:
                 raise Exception("Failed to retrieve token")
         else:
-            print("Using existing PANOS API token from config file.")
+            logging.info("Using existing PANOS API token from config file.")
         return self.token
 
     def make_request(self, headers, payload, verify=True):

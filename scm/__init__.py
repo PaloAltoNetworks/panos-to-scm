@@ -38,7 +38,7 @@ class PanApiHandler:
         # Constructing the URL with additional query parameters
         query_params = '&'.join([f'{key}={value}' for key, value in kwargs.items()])
         url = f"{self.BASE_URL}{endpoint}{query_params}"
-        print(f'Fetching items: {url}')
+        logging.info(f'Fetching items: {url}')
 
         for attempt in range(retries + 1):
             try:

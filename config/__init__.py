@@ -7,8 +7,7 @@ class AppConfig:
         self.max_workers = 3
 
         # Define the path to the XML file that contains the data to be processed
-        self.xml_file_path = 'ISC-0517-1315.xml'  # Update as needed
-        # self.xml_file_path = 'pa-440.xml'  # Update as needed
+        self.xml_file_path = 'pa-440.xml'  # Update as needed
 
         # Define the limit for rule processing
         self.limit = '10000'
@@ -19,7 +18,8 @@ class AppConfig:
             obj.ServiceGroup, obj.ExternalDynamicList, obj.URLCategory, 
             obj.URLAccessProfile, obj.VulnerabilityProtectionProfile, 
             obj.AntiSpywareProfile, obj.WildFireAntivirusProfile, 
-            obj.ProfileGroup, obj.ApplicationFilter, obj.ApplicationGroup
+            obj.ProfileGroup, obj.ApplicationFilter, obj.ApplicationGroup,
+            obj.Schedule
         ]
         self.sec_obj = obj.SecurityRule
 

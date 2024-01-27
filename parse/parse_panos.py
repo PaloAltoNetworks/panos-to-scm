@@ -19,6 +19,7 @@ CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
 """
 import xml.etree.ElementTree as ET
+import logging
 
 class XMLParser:
     def __init__(self, file_path, config_type, device_group_name=None):
@@ -90,6 +91,7 @@ class XMLParser:
             'ExternalDynamicList': self.edl_entries(),
             'ApplicationFilter': self.application_filter_entries(),
             'ApplicationGroup': self.application_group_entries(),
+            'Schedule': self.schedule_entries(),
             'security_pre_rules': self.security_pre_rules_entries(),
             'security_post_rules': self.security_post_rules_entries(),
             'nat_pre_rules': self.nat_pre_rules_entries(),
@@ -104,6 +106,52 @@ class XMLParser:
         elif self.config_type == 'panorama/device-group':
             return path_dict.get('device-group', '').format(device_group_name=self.device_group_name)
         return path_dict.get('local')  # This will return None if 'local' key is not present
+
+    def schedule_entries(self):
+        base_xpath_dict = {
+            'local': './devices/entry/vsys/entry/schedule/entry',
+            'shared': './shared/schedule/entry',
+            'device-group': './devices/entry/device-group/entry[@name="{device_group_name}"]/schedule/entry'
+        }
+
+        base_xpath = self._get_base_xpath(base_xpath_dict)
+        schedules = []
+
+        for entry in self.root.findall(base_xpath):
+            schedule_entry = {
+                'name': entry.get('name'),
+                'schedule_type': {}
+            }
+
+            schedule_type = entry.find('schedule-type')
+            if schedule_type is not None:
+                if schedule_type.find('recurring') is not None:
+                    recurring = {}
+                    recurring_type = schedule_type.find('recurring')
+
+                    if recurring_type.find('daily') is not None:
+                        daily_schedule = {
+                            'daily': [member.text for member in recurring_type.find('daily').findall('member')]
+                        }
+                        recurring.update(daily_schedule)
+
+                    if recurring_type.find('weekly') is not None:
+                        weekly_schedule = {}
+                        for day in ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday']:
+                            day_schedule = recurring_type.find('weekly').find(day)
+                            if day_schedule is not None:
+                                weekly_schedule[day] = [member.text for member in day_schedule.findall('member')]
+                        recurring.update({'weekly': weekly_schedule})
+
+                    schedule_entry['schedule_type']['recurring'] = recurring
+
+                elif schedule_type.find('non-recurring') is not None:
+                    non_recurring_times = [member.text for member in schedule_type.find('non-recurring').findall('member')]
+                    schedule_entry['schedule_type']['non_recurring'] = non_recurring_times
+
+            schedules.append(schedule_entry)
+
+        return schedules
 
     def zones(self):
         tree = ET.parse(self.file_path)
@@ -753,6 +801,7 @@ class XMLParser:
             source_user = entry.findall('source-user/member')
             tag = entry.findall('tag/member')
             to_zone = entry.findall('to/member')
+            schedule= entry.find('schedule')
 
             security_rule = {
                 'name': name,
@@ -776,7 +825,10 @@ class XMLParser:
                 'action': action.text if action is not None else None,
                 # 'profile_setting': {'group': ['AlertOnly']}
                 'profile_setting': {'group': [profile_setting.text]} if profile_setting is not None else None,
+                'schedule': schedule.text if schedule is not None else None
             }
+            if schedule is not None and schedule.text:
+                logging.warning(f"Schedule detected, manually add {schedule.text} to rule '{name}'")            
 
             # Filter out None values from the address dictionary
             # print(security_rule)
@@ -816,6 +868,7 @@ class XMLParser:
             source_user = entry.findall('source-user/member')
             tag = entry.findall('tag/member')
             to_zone = entry.findall('to/member')
+            schedule = entry.find('schedule')
 
             security_rule = {
                 'name': name,
@@ -839,8 +892,11 @@ class XMLParser:
                 'action': action.text if action is not None else None,
                 # 'profile_setting': {'group': ['AlertOnly']}
                 'profile_setting': {'group': [profile_setting.text]} if profile_setting is not None else None,
+                'schedule': schedule.text if schedule is not None else None
             }
-
+            if schedule is not None and schedule.text:
+                logging.warning(f"Schedule detected, manually add {schedule.text} to rule '{name}'")
+                
             # Filter out None values from the address dictionary
             # print(security_rule)
             filtered_security_rules = {k: v for k, v in security_rule.items() if v is not None}

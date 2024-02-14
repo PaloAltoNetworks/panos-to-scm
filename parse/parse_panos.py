@@ -253,7 +253,7 @@ class XMLParser:
         base_xpath_dict = {
             'local': './devices/entry/vsys/entry/profiles/vulnerability/entry',
             'shared': './shared/profiles/vulnerability/entry',
-            'device-group': './devices/entry/device-group/entry[@name="{device_group_name}"]/profilesvulnerability/entry'
+            'device-group': './devices/entry/device-group/entry[@name="{device_group_name}"]/profiles/vulnerability/entry'
         }
 
         base_xpath = self._get_base_xpath(base_xpath_dict)  

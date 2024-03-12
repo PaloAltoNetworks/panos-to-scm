@@ -493,8 +493,8 @@ class SCMObjectManager:
         rules_to_create_post = [rule for rule in security_rule_post_entries if rule['name'] not in current_rule_names_post]
 
         rule_types = [
-            (rules_to_create_pre, "?position=pre", "pre-rules"),
-            (rules_to_create_post, "?position=post", "post-rules")
+            (rules_to_create_pre, "position=pre", "pre-rules"),
+            (rules_to_create_post, "position=post", "post-rules")
         ]
 
         for rules, extra_query_param, rule_type_name in rule_types:

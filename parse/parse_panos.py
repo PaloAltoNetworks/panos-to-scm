@@ -835,10 +835,12 @@ class XMLParser:
             filtered_security_rules = {k: v for k, v in security_rule.items() if v is not None}
             security_rules.append(filtered_security_rules)
 
+        logging.debug(f'FOUND THESE PRE RULES: {security_rules}')
         return security_rules
     
     def security_post_rules_entries(self):
         base_xpath_dict = {
+            'local': './devices/entry/vsys/entry/rulebase/security/rules/entry',
             'shared': './shared/post-rulebase/security/rules/entry',
             'device-group': f'./devices/entry/device-group/entry[@name="{self.device_group_name}"]/post-rulebase/security/rules/entry'
         }
@@ -849,6 +851,7 @@ class XMLParser:
         if self.config_type == 'local' or not base_xpath:
             return []
 
+        logging.debug(f'POST RULE is going to check in xpath {base_xpath}')
         security_rules = []
         for entry in self.root.findall(base_xpath):
             action = entry.find('action')
@@ -897,11 +900,10 @@ class XMLParser:
             if schedule is not None and schedule.text:
                 logging.warning(f"Schedule detected, manually add {schedule.text} to rule '{name}'")
                 
-            # Filter out None values from the address dictionary
-            # print(security_rule)
             filtered_security_rules = {k: v for k, v in security_rule.items() if v is not None}
             security_rules.append(filtered_security_rules)
 
+        logging.debug(f'FOUND THESE POST RULES: {security_rules}')
         return security_rules
     
     def nat_pre_rules_entries(self):

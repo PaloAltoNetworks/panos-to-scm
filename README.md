@@ -20,7 +20,7 @@ Optionally, you can ommit username/password and only apply the API key<br />
 client_id: policy-import@123456789.iam.panserviceaccount.com
 client_secret: xxxxxxxxxxxxxxxxxxxxxx
 tsg_id: 123456789
-palo_alto_ngfw_url: https://10.255.255.4/api/
+palo_alto_ngfw_url: https://x.x.x.x/api/
 palo_alto_password: PasswordHere
 palo_alto_username: admin
 palo_api_token: xxxxxxxxxxxxxxxxxxxxxx

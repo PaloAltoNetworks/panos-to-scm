@@ -18,12 +18,12 @@ Optionally, you can ommit username/password and only apply the API key<br />
 ```yaml
 ---
 client_id: policy-import@123456789.iam.panserviceaccount.com
-client_secret: abc12345-52b6-405c-a754-c2fffffb3561
+client_secret: xxxxxxxxxxxxxxxxxxxxxx
 tsg_id: 123456789
 palo_alto_ngfw_url: https://10.255.255.4/api/
-palo_alto_password: Password123456!@#
+palo_alto_password: PasswordHere
 palo_alto_username: admin
-palo_api_token: LUFRPT1tMlltKzFxamhTVnliTnN3Z1ZYS1JESk8yS2c9bUdERnl2bkk3ZzdVeGlGYkJRQXhZTmd1cE5GN2xTKzM3TTFlN3JlTmx1bDRmenhVMUtPWUE4WTZyVFJJNnV3Sg==
+palo_api_token: xxxxxxxxxxxxxxxxxxxxxx
 ```
 
 Update /config/__init__ with your configuration options<br />

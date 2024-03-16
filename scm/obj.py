@@ -73,6 +73,10 @@ class AutoTagAction(PanApiHandler):
     "An auto-tag action"
     _endpoint = "/sse/config/v1/auto-tag-actions?"
 
+class Certificate(PanApiHandler):
+    "An X.509 certificate"
+    _endpoint = "/sse/config/v1/certificates"
+
 class CertificateProfile(PanApiHandler):
     "A certificate profile"
     _endpoint = "/sse/config/v1/certificate-profiles?"

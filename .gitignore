@@ -157,6 +157,9 @@ debug*.txt
 
 #palo alto running_config.xml
 running_config.xml
+config*.xml
+pa-440.xml
+
 
 # PyCharm
 #  JetBrains specific template is maintained in a separate JetBrains.gitignore that can

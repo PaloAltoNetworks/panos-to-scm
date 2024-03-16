@@ -3,7 +3,7 @@
 import logging
 from logging.handlers import TimedRotatingFileHandler
 import time
-from config import AppConfig
+from config import ConfigurationManager
 from parse.parse_panos import XMLParser
 from api import PanApiSession
 from scm import PanApiHandler
@@ -54,11 +54,7 @@ def initialize_api_session():
 def setup_scm_object_manager(session, configure, obj_types, sec_obj, folder_scope):
     return SCMObjectManager(session, folder_scope, configure, obj, obj_types, sec_obj)
 
-def main(config):
-    setup_logging()
-    logger = logging.getLogger(__name__)
-    begin_time = time.time()
-  
+def main(config): 
     try:
         start_time = time.time()
         logging.info(f"Script started at {time.ctime(start_time)}")
@@ -91,5 +87,9 @@ def main(config):
     logger.info(f"Final Script execution time: {complete_time - begin_time:.2f} seconds")
 
 if __name__ == "__main__":
-    config = AppConfig()
+    setup_logging()
+    logger = logging.getLogger(__name__)
+    begin_time = time.time()
+    config_manager = ConfigurationManager()
+    config = config_manager.app_config
     main(config)

@@ -16,7 +16,7 @@ cd panos-to-scm
 #### SCM Configuration
 
 - **SCM Credentials**: The credentials needed to request an access token can be defined in a configuration located at "$HOME/.panapi/config.yml"
-  - **How to get there**This is a hidden folder in your current home directory:
+  - **How to get there**:
   - **Window**s: `C:\users\<username>\.panapi\config.yml`
   - **MacOS**: `/Users/<username>/.panapi/config.yml`
   - **Linux**: `/home/<username>/.panapi/config.yml`

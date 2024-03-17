@@ -1,19 +1,29 @@
-# panos-to-scm
-Migrate Panorama Device Group, Local PANOS Firewall config using their API, or you can reference a static XML file, into Strata Cloud Manager Folder
+## panos-to-scm
+- **Purpose:** Migrate Panorama Device Group, Local PANOS Firewall config using their API, or you can reference a static XML file, into Strata Cloud Manager Folder
 
-# Requirements
-First, you need to install dependencies. You can do this using:<br />
-"pip install ."<br />
+### Step 1: Clone the Repository
 
-The credentials needed to request an access token can be defined in a configuration located at "$HOME/.panapi/config.yml"<br />
-This is a hidden folder in your current home directory:<br />
-Windows: `C:\users\<username>\.panapi\config.yml`<br />
-MacOS: `/Users/<username>/.panapi/config.yml`<br />
-Linux: `/home/<username>/.panapi/config.yml`<br />
+```bash
+git clone https://github.com/PaloAltoNetworks/panos-to-scm.git
+cd panos-to-scm
+```
 
-Additionally add your PANOS NGFW/Panorama URL, Password and API Key<br />
-If you don't have API key for PANOS, the script will fetch API key and update config file<br />
-Optionally, you can ommit username/password and only apply the API key<br />
+### Step 2: Install the Package
+"pip install ."
+
+### Step 3: Configuration and Credentials
+
+#### SCM Configuration
+
+- **SCM Credentials**: The credentials needed to request an access token can be defined in a configuration located at "$HOME/.panapi/config.yml"
+  - **How to get there**This is a hidden folder in your current home directory:
+  - **Window**s: `C:\users\<username>\.panapi\config.yml`
+  - **MacOS**: `/Users/<username>/.panapi/config.yml`
+  - **Linux**: `/home/<username>/.panapi/config.yml`
+
+- Additionally add your PANOS NGFW/Panorama URL, Password and API Key
+- If you don't have API key for PANOS, the script will fetch API key and update config file
+- Optionally, you can ommit username/password and only apply the API key
 
 ```yaml
 ---
@@ -26,35 +36,31 @@ palo_alto_username: admin
 palo_api_token: xxxxxxxxxxxxxxxxxxxxxx
 ```
 
-Update `/config/__init__` with your configuration options<br />
-Update xml_file_path with your XML file export of Panorama or Local Firewall running config<br />
-Decide what obj_types you want to use<br />
+### Step 4: Executing main.py
+- If you run main.py as is, it'll ask if you want to use static XML file controlled at `/config/__init__.py`
+- The default XML file name must be in project directory and named `running_config.xml`
+- Otherwise, it'll get the full running config from your PANOS device(controlled at $HOME/.panapi/config.yml)
+- Script will Parse all XML and create dictionary of object types and security rules
+- Script will GET all objects and rules from SCM and then compare your XML and post new entries.
+- Also handles rule ordering if something gets out of order(order determined by XML) which occurs in parallel processing
+- Script currently will update rules or objects if value has changed - example, address-group1 has members A,B,C in SCM
+- If PANOS config has A,B,C,D - it will  update and PUT D into it..
 
-## Main.py config
-If you run main.py as is, it'll ask if you want to use static XML file controlled at `/config/__init__.py`<br />
-The default XML file name must be in project directory and named `running_config.xml`<br />
-Otherwise, it'll get the full running config from your PANOS device(controlled at $HOME/.panapi/config.yml)<br />
-Script will Parse all XML and create dictionary of object types and security rules<br />
-Script will GET all objects and rules from SCM and then compare your XML and post new entries.<br />
-Also handles rule ordering if something gets out of order(order determined by XML) which occurs in parallel processing<br />
-Script currently will update rules or objects if value has changed - example, address-group1 has members A,B,C in SCM<br />
-If PANOS config has A,B,C,D - it will  update and PUT D into it..<br />
+### Currently Supported Features:
 
-## Currently Supported Features:
-
--External Dynamic List - IP, URL, Domain<br />
--Custom URL Categories<br />
--URL Filter Profiles<br />
--Vulnerability Profiles<br />
--Anti-Spyware Profiles - SCM<br />
--Anti-Virus Profiles - SCM combines Virus/WildFire together.. As of now, it's importing Anti-Virus (but decoder's do not show currently)<br />
--Profile Groups<br />
--Tags<br />
--Address Objects<br />
--Address Groups<br />
--Service Objects<br />
--Service Groups<br />
--Application Filters<br />
--Application Groups<br />
--Security Rules<br />
--NAT Rules - API is not open yet, not tested.. Will test when API is open<br />
+- **External Dynamic List** IP, URL, Domain
+- **Custom URL Categories**
+- **URL Filter Profiles**
+- **Vulnerability Profiles**
+- **Anti-Spyware Profiles**
+- **Anti-Virus Profiles**: SCM combines Virus/WildFire together.. As of now, it's importing Anti-Virus (but decoder's do not show currently)
+- **Profile Groups**
+- **Tags**
+- **Address Objects**
+-**Address Groups**
+-**Service Objects**
+-**Service Groups**
+-**Application Filters**
+-**Application Groups**
+-**Security Rules**
+-**NAT Rules**: API is not open yet, not tested.. Will test when API is open

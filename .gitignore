@@ -153,7 +153,8 @@ dmypy.json
 cython_debug/
 
 #debug log files
-debug*.txt
+debug-log.txt
+debug-log.txt.*
 
 #palo alto running_config.xml
 running_config.xml

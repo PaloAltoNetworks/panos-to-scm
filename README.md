@@ -22,8 +22,8 @@ cd panos-to-scm
   - **Linux**: `/home/<username>/.panapi/config.yml`
 
 - Additionally add your PANOS NGFW/Panorama URL, Password and API Key
-- If you don't have API key for PANOS, the script will fetch API key and update config file
-- Optionally, you can ommit username/password and only apply the API key
+    - If you don't have API key for PANOS, the script will fetch API key and update config file
+    - Optionally, you can ommit username/password and only apply the API key
 
 ```yaml
 ---

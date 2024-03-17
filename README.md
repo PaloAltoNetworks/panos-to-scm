@@ -12,9 +12,7 @@ cd panos-to-scm
 ### Step 2: Install the Package
 "pip install ."
 
-### Step 3: Configuration and Credentials
-
-#### SCM Configuration
+### Step 3: SCM and PANOS Credentials
 
 - **SCM Credentials**: The credentials needed to request an access token can be defined in a configuration located at "$HOME/.panapi/config.yml"
   - **How to get there**:

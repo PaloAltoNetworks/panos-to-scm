@@ -676,7 +676,7 @@ class XMLParser:
             service_groups.append(filtered_service_groups)
 
         return service_groups
-    
+
     def edl_entries(self):
         base_xpath_dict = {
             'local': './devices/entry/vsys/entry/external-list/entry',
@@ -685,45 +685,88 @@ class XMLParser:
         }
 
         base_xpath = self._get_base_xpath(base_xpath_dict)
-
         edl_entries = []
+
         for entry in self.root.findall(base_xpath):
-            edl_entry_name = entry.get('name')
-
-            type_element = entry.find('type')
-            url_element = type_element.find('url')
-            ip_element = type_element.find('ip')
-            domain_element = type_element.find('domain')
-
-            if url_element is not None:
-                edl_type = 'url'
-                recurring_element = url_element.find('recurring')
-                url = url_element.find('url').text
-                profile = url_element.find('certificate-profile').text
-            elif ip_element is not None:
-                edl_type = 'ip'
-                recurring_element = ip_element.find('recurring')
-                url = ip_element.find('url').text
-                profile = ip_element.find('certificate-profile').text
-            elif domain_element is not None:
-                edl_type = 'domain'
-                recurring_element = domain_element.find('recurring')
-                url = domain_element.find('url').text
-                profile = domain_element.find('certificate-profile').text
-            else:
-                continue  # Skip this entry if neither URL nor IP type is found
-
-            recurring_type = next((child.tag for child in recurring_element), None)
-            recurring = {recurring_type: {}}
-
-            edl_entry = {
-                'name': edl_entry_name,
-                'type': {edl_type: {'recurring': recurring, 'url': url, 'certificate_profile': profile}},
-            }
-
-            edl_entries.append(edl_entry)
+            edl_entry = self._parse_edl_entry(entry)
+            if edl_entry:
+                edl_entries.append(edl_entry)
 
         return edl_entries
+
+    def _parse_edl_entry(self, entry):
+        edl_entry_name = entry.get('name')
+        type_element = entry.find('type')
+        for edl_type in ['url', 'ip', 'domain']:
+            element = type_element.find(edl_type)
+            if element is not None:
+                return self._create_edl_entry_dict(edl_entry_name, edl_type, element)
+        return None
+
+    def _create_edl_entry_dict(self, name, edl_type, element):
+        recurring_element = element.find('recurring')
+        recurring_type = next((child.tag for child in recurring_element), None) if recurring_element is not None else 'unknown'
+        # If the recurring type is 'five-minute', return {} as the default value for recurring
+        if recurring_type == 'five-minute':
+            recurring = {}
+        else:
+            recurring = {recurring_type: {}}
+        url = element.find('url').text if element.find('url') is not None else 'N/A'
+        profile = element.find('certificate-profile').text if element.find('certificate-profile') is not None else 'Default'
+
+        return {
+            'name': name,
+            'type': {edl_type: {'recurring': recurring, 'url': url, 'certificate_profile': profile}},
+        }
+
+
+    # def edl_entries(self):
+    #     base_xpath_dict = {
+    #         'local': './devices/entry/vsys/entry/external-list/entry',
+    #         'shared': './shared/external-list/entry',
+    #         'device-group': f'./devices/entry/device-group/entry[@name="{self.device_group_name}"]/external-list/entry'
+    #     }
+
+    #     base_xpath = self._get_base_xpath(base_xpath_dict)
+
+    #     edl_entries = []
+    #     for entry in self.root.findall(base_xpath):
+    #         edl_entry_name = entry.get('name')
+
+    #         type_element = entry.find('type')
+    #         url_element = type_element.find('url')
+    #         ip_element = type_element.find('ip')
+    #         domain_element = type_element.find('domain')
+
+    #         if url_element is not None:
+    #             edl_type = 'url'
+    #             recurring_element = url_element.find('recurring')
+    #             url = url_element.find('url').text
+    #             profile = url_element.find('certificate-profile').text
+    #         elif ip_element is not None:
+    #             edl_type = 'ip'
+    #             recurring_element = ip_element.find('recurring')
+    #             url = ip_element.find('url').text
+    #             profile = ip_element.find('certificate-profile').text
+    #         elif domain_element is not None:
+    #             edl_type = 'domain'
+    #             recurring_element = domain_element.find('recurring')
+    #             url = domain_element.find('url').text
+    #             profile = domain_element.find('certificate-profile').text
+    #         else:
+    #             continue  # Skip this entry if neither URL nor IP type is found
+
+    #         recurring_type = next((child.tag for child in recurring_element), None)
+    #         recurring = {recurring_type: {}}
+
+    #         edl_entry = {
+    #             'name': edl_entry_name,
+    #             'type': {edl_type: {'recurring': recurring, 'url': url, 'certificate_profile': profile}},
+    #         }
+
+    #         edl_entries.append(edl_entry)
+
+    #     return edl_entries
 
     def application_filter_entries(self):
         base_xpath_dict = {

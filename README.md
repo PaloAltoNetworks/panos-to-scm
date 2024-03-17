@@ -31,8 +31,8 @@ client_id: policy-import@123456789.iam.panserviceaccount.com
 client_secret: xxxxxxxxxxxxxxxxxxxxxx
 tsg_id: 123456789
 palo_alto_ngfw_url: https://x.x.x.x/api/
-palo_alto_password: PasswordHere
-palo_alto_username: admin
+palo_alto_password: service_account_password
+palo_alto_username: service_account_name
 palo_api_token: xxxxxxxxxxxxxxxxxxxxxx
 ```
 

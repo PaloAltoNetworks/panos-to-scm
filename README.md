@@ -41,7 +41,7 @@ If PANOS config has A,B,C,D - it will  update and PUT D into it..<br />
 
 ## Currently Supported Features:
 
--External Dynamic List - IP and URL.. Missing Certificate Profile for now<br />
+-External Dynamic List - IP, URL, Domain<br />
 -Custom URL Categories<br />
 -URL Filter Profiles<br />
 -Vulnerability Profiles<br />

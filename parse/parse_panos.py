@@ -693,15 +693,23 @@ class XMLParser:
             type_element = entry.find('type')
             url_element = type_element.find('url')
             ip_element = type_element.find('ip')
+            domain_element = type_element.find('domain')
 
             if url_element is not None:
                 edl_type = 'url'
                 recurring_element = url_element.find('recurring')
                 url = url_element.find('url').text
+                profile = url_element.find('certificate-profile').text
             elif ip_element is not None:
                 edl_type = 'ip'
                 recurring_element = ip_element.find('recurring')
                 url = ip_element.find('url').text
+                profile = ip_element.find('certificate-profile').text
+            elif domain_element is not None:
+                edl_type = 'domain'
+                recurring_element = domain_element.find('recurring')
+                url = domain_element.find('url').text
+                profile = domain_element.find('certificate-profile').text
             else:
                 continue  # Skip this entry if neither URL nor IP type is found
 
@@ -710,7 +718,7 @@ class XMLParser:
 
             edl_entry = {
                 'name': edl_entry_name,
-                'type': {edl_type: {'recurring': recurring, 'url': url}}
+                'type': {edl_type: {'recurring': recurring, 'url': url, 'certificate_profile': profile}},
             }
 
             edl_entries.append(edl_entry)

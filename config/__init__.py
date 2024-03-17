@@ -49,7 +49,7 @@ class ConfigurationManager:
     def check_for_default_settings(self):
         with open(self.config_file_path, 'r') as config_file:
             current_config = yaml.safe_load(config_file)
-            default_indicators = ["enter-username", "xxxxxxxxxxxxxxxxxxxxxx", "enter-unique-tsg-here", "https://x.x.x.x/api/", "password-goes-here", "service-account-name"]
+            default_indicators = ["enter-username", "xxxxxxxxxxxxxxxxxxxxxx", "enter-unique-tsg-here"]
             if any(indicator in str(current_config.values()) for indicator in default_indicators):
                 logging.error(f"Default settings detected in {self.config_file_path}. Please update the file with your environment details.")
                 sys.exit(1)

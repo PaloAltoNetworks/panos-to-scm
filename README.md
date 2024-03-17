@@ -26,12 +26,12 @@ palo_alto_username: admin
 palo_api_token: xxxxxxxxxxxxxxxxxxxxxx
 ```
 
-Update /config/__init__ with your configuration options<br />
+Update '/config/__init__' with your configuration options<br />
 Update xml_file_path with your XML file export of Panorama or Local Firewall running config<br />
 Decide what obj_types you want to use<br />
 
 ## Main.py config
-If you run main.py as is, it'll ask if you want to use static XML file (controlled at /config/__init__.py<br />
+If you run main.py as is, it'll ask if you want to use static XML file controlled at '/config/__init__.py'<br />
 Otherwise, it'll get the full running config from your PANOS device(controlled at $HOME/.panapi/config.yml)<br />
 Script will Parse all XML and create dictionary of object types and security rules<br />
 Script will GET all objects and rules from SCM and then compare your XML and post new entries.<br />

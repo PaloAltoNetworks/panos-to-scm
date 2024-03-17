@@ -1,5 +1,6 @@
 ## panos-to-scm
-- **Purpose:** Migrate Panorama Device Group OR Local PANOS Firewall config using their API.. Additionally, you can reference a static XML file and migrate into Strata Cloud Manager Folder
+- **Purpose:** Pull Panorama Device Group OR Local PANOS Firewall config using their XMLAPI and migrate into Strata Cloud Manager.. 
+    - Additionally, you can reference a static XML file and migrate into Strata Cloud Manager Folder
 
 ### Step 1: Clone the Repository
 

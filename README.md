@@ -57,10 +57,10 @@ palo_api_token: xxxxxxxxxxxxxxxxxxxxxx
 - **Profile Groups**
 - **Tags**
 - **Address Objects**
--**Address Groups**
--**Service Objects**
--**Service Groups**
--**Application Filters**
--**Application Groups**
--**Security Rules**
--**NAT Rules**: API is not open yet, not tested.. Will test when API is open
+- **Address Groups**
+- **Service Objects**
+- **Service Groups**
+- **Application Filters**
+- **Application Groups**
+- **Security Rules**
+- **NAT Rules**: API is not open yet, not tested.. Will test when API is open

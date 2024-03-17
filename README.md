@@ -48,7 +48,7 @@ palo_api_token: xxxxxxxxxxxxxxxxxxxxxx
 
 ### Currently Supported Features:
 
-- **External Dynamic List** IP, URL, Domain
+- **External Dynamic List**: Supports IP, URL, Domain lists
 - **Custom URL Categories**
 - **URL Filter Profiles**
 - **Vulnerability Profiles**

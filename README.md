@@ -1,5 +1,5 @@
 # panos-to-scm
-Migrate Panorama or Local PANOS config(FROM XML file) to Strata Cloud Manager
+Migrate Panorama Device Group, Local PANOS Firewall config using their API, or you can reference a static XML file, into Strata Cloud Manager Folder
 
 # Requirements
 First, you need to install dependencies. You can do this using:<br />

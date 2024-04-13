@@ -59,8 +59,8 @@ def main(config):
         start_time = time.time()
         logging.info(f"Script started at {time.ctime(start_time)}")
 
-        api_handler = PanApiHandler(initialize_api_session())
-        configure = Processor(api_handler, config.max_workers, obj)
+        api_session = PanApiHandler(initialize_api_session())
+        configure = Processor(api_session, config.max_workers, obj)
 
         xml_file_path = get_xml_file_path(config, logger)
 
@@ -72,9 +72,9 @@ def main(config):
         parse.device_group_name = device_group_name
         parsed_data = parse.parse_all()
 
-        scm_obj_manager = setup_scm_object_manager(api_handler, configure, config.obj_types, config.sec_obj, folder_scope)
+        scm_obj_manager = setup_scm_object_manager(api_session, configure, config.obj_types, config.sec_obj, folder_scope)
         scm_obj_manager.process_objects(parsed_data, folder_scope, device_group_name, max_workers=6)
-        scm_obj_manager.process_security_rules(api_handler, config.sec_obj, parsed_data, xml_file_path, limit=config.limit)
+        scm_obj_manager.process_security_rules(api_session, config.sec_obj, parsed_data, xml_file_path, limit=config.limit)
 
         end_time = time.time()
         logger.info(f"Script execution time: {end_time - start_time:.2f} seconds")

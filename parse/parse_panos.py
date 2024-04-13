@@ -419,7 +419,7 @@ class XMLParser:
                         'file_type' : ['any'],
                         'name' : 'all-files'
                     }
-                ]
+                ],
                 # 'decoders': decoders  ## To be updated when API Allows decoder entries
             }
 

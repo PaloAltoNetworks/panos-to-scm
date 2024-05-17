@@ -13,11 +13,13 @@ class AppConfig:
             obj.Tag, obj.Address, obj.AddressGroup, obj.Service, 
             obj.ServiceGroup, obj.ExternalDynamicList, obj.URLCategory, 
             obj.URLAccessProfile, obj.VulnerabilityProtectionProfile, 
-            obj.AntiSpywareProfile, obj.WildFireAntivirusProfile, 
+            obj.AntiSpywareProfile, 
+            # obj.WildFireAntivirusProfile,
             obj.ProfileGroup, obj.ApplicationFilter, obj.ApplicationGroup,
             obj.Schedule
         ]
         self.sec_obj = obj.SecurityRule
+        self.nat_obj = obj.NatRule
 
 class ConfigurationManager:
     def __init__(self):

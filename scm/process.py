@@ -249,7 +249,7 @@ class RuleProcessor:
         return current_rule_names == desired_rule_names
 
 class SCMObjectManager:
-    def __init__(self, api_handler, folder_scope, configure, obj_module, obj_types, sec_obj):
+    def __init__(self, api_handler, folder_scope, configure, obj_module, obj_types, sec_obj, nat_obj):
         """
         Initialize SCMObjectManager with necessary handlers and configurations.
 
@@ -267,6 +267,7 @@ class SCMObjectManager:
         self.obj = obj_module
         self.obj_types = obj_types
         self.sec_obj = sec_obj
+        self.nat_obj = nat_obj        
         self.logger = logging.getLogger(__name__)
 
     def fetch_objects(self, obj_type, limit='10000', position=''):
@@ -508,6 +509,35 @@ class SCMObjectManager:
         # Reorder rules if necessary
         self.reorder_rules_if_needed(sec_obj, security_rule_pre_entries, current_rules_pre, api_handler, position='pre')
         self.reorder_rules_if_needed(sec_obj, security_rule_post_entries, current_rules_post, api_handler, position='post')
+
+    def process_nat_rules(self, api_handler, nat_obj, parsed_data, xml_file_path, limit='10000'):
+        pre_nat_rules = self.fetch_rules(nat_obj, limit, position='pre')
+        post_nat_rules = self.fetch_rules(nat_obj, limit, position='post')
+        current_nat_rules_pre = [rule for rule in pre_nat_rules if rule['folder'] == self.folder_scope]
+        current_nat_rules_post = [rule for rule in post_nat_rules if rule['folder'] == self.folder_scope]
+        current_nat_rule_names_pre = set(rule['name'] for rule in current_nat_rules_pre)
+        current_nat_rule_names_post = set(rule['name'] for rule in current_nat_rules_post)
+        nat_rule_pre_entries = parsed_data['nat_pre_rules']
+        nat_rule_post_entries = parsed_data['nat_post_rules']
+        rules_to_create_pre = [rule for rule in nat_rule_pre_entries if rule['name'] not in current_nat_rule_names_pre]
+        rules_to_create_post = [rule for rule in nat_rule_post_entries if rule['name'] not in current_nat_rule_names_post]
+
+        rule_types = [
+            (rules_to_create_pre, "position=pre", "pre-nat-rules"),
+            (rules_to_create_post, "position=post", "post-nat-rules")
+        ]
+
+        for rules, extra_query_param, rule_type_name in rule_types:
+            if rules:
+                self.configure.set_max_workers(1)
+                self.configure.post_entries(self.folder_scope, rules, nat_obj, extra_query_params=extra_query_param)
+            else:
+                message = f"No new {rule_type_name} to create from XML: {xml_file_path}"
+                logging.info(message)
+
+        # Reorder NAT rules if necessary
+        self.reorder_rules_if_needed(nat_obj, nat_rule_pre_entries, current_nat_rules_pre, api_handler, position='pre')
+        self.reorder_rules_if_needed(nat_obj, nat_rule_post_entries, current_nat_rules_post, api_handler, position='post')
 
     def reorder_rules_if_needed(self, sec_obj, security_rule_entries, current_rules, api_handler, position):
         """

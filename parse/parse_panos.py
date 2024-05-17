@@ -907,11 +907,11 @@ class XMLParser:
 
         logging.debug(f'FOUND THESE POST RULES: {security_rules}')
         return security_rules
-    
+
     def nat_pre_rules_entries(self):
         base_xpath_dict = {
             'local': './devices/entry/vsys/entry/rulebase/nat/rules/entry',
-            'shared': './shared/pre-rulebase/security/nat/entry',
+            'shared': './shared/pre-rulebase/nat/rules/entry',
             'device-group': f'./devices/entry/device-group/entry[@name="{self.device_group_name}"]/pre-rulebase/nat/rules/entry'
         }
 
@@ -921,47 +921,149 @@ class XMLParser:
         for entry in self.root.findall(base_xpath):
             name = entry.get('name')
             from_zone = entry.findall('from/member')
+            to_zone = entry.findall('to/member')
             source = entry.findall('source/member')
-            description = entry.find('description')
             destination = entry.findall('destination/member')
+            service = entry.find('service')
             nat_type = entry.find('nat-type')
+            description = entry.find('description')
             disabled = entry.find('disabled')
-            service = entry.find('service/member')
             tag = entry.findall('tag/member')
-            to_zone = entry.find('to/member')
             source_translation = entry.find('source-translation')
             destination_translation = entry.find('destination-translation')
+            active_active_device_binding = entry.find('active-active-device-binding')
+
+            # Ensure service is correctly extracted
+            service_value = service.text if service is not None else 'any'
+
+            # Parsing destination_translation to match OpenAPI specification
+            destination_translation_dict = None
+            if destination_translation is not None:
+                translated_address = destination_translation.find('translated-address')
+                translated_port = destination_translation.find('translated-port')
+                dns_rewrite = destination_translation.find('dns-rewrite')
+
+                destination_translation_dict = {
+                    'translated_address_single': translated_address.text if translated_address is not None else None,
+                    'translated_port': int(translated_port.text) if translated_port is not None else None,
+                    'dns_rewrite': {
+                        'direction': dns_rewrite.find('direction').text if dns_rewrite is not None else None
+                    } if dns_rewrite is not None else None
+                }
+                # Remove None values
+                destination_translation_dict = {k: v for k, v in destination_translation_dict.items() if v is not None}
+
+            # Parsing source_translation to match OpenAPI specification
+            source_translation_dict = None
+            if source_translation is not None:
+                dynamic_ip_and_port = source_translation.find('dynamic-ip-and-port')
+                static_ip = source_translation.find('static-ip')
+                dynamic_ip = source_translation.find('dynamic-ip')
+
+                if dynamic_ip_and_port is not None:
+                    interface_address = dynamic_ip_and_port.find('interface-address')
+                    translated_addresses = [addr.text.strip() for addr in dynamic_ip_and_port.findall('translated-address/member') if addr.text.strip()]
+
+                    dynamic_ip_and_port_dict = {}
+
+                    if interface_address is not None:
+                        dynamic_ip_and_port_dict['interface_address'] = {
+                            'interface': interface_address.find('interface').text if interface_address.find('interface') is not None else None,
+                            'ip': interface_address.find('ip').text if interface_address.find('ip') is not None else None,
+                        }
+                        # Remove None values from interface_address
+                        dynamic_ip_and_port_dict['interface_address'] = {k: v for k, v in dynamic_ip_and_port_dict['interface_address'].items() if v is not None}
+
+                        # If interface_address is empty, remove it from dynamic_ip_and_port_dict
+                        if not dynamic_ip_and_port_dict['interface_address']:
+                            dynamic_ip_and_port_dict.pop('interface_address', None)
+
+                    if translated_addresses:
+                        dynamic_ip_and_port_dict['translated_address_array'] = translated_addresses
+
+                    source_translation_dict = {
+                        'dynamic_ip_and_port': dynamic_ip_and_port_dict
+                    }
+
+                elif static_ip is not None:
+                    translated_address_single = static_ip.find('translated-address')
+                    bi_directional = static_ip.find('bi-directional')
+
+                    source_translation_dict = {
+                        'static_ip': {
+                            'translated_address_single': translated_address_single.text if translated_address_single is not None else None,
+                            'bi_directional': bi_directional.text if bi_directional is not None else None,
+                        }
+                    }
+                elif dynamic_ip is not None:
+                    translated_addresses = [addr.text.strip() for addr in dynamic_ip.findall('translated-address/member') if addr.text.strip()]
+                    fallback = dynamic_ip.find('fallback')
+
+                    fallback_dict = None
+                    if fallback is not None:
+                        fallback_translated_addresses = [addr.text.strip() for addr in fallback.findall('translated-address/member') if addr.text.strip()]
+                        fallback_interface_address = fallback.find('interface-address')
+
+                        fallback_dict = {
+                            'translated_address_array': fallback_translated_addresses if fallback_translated_addresses else [],
+                            'interface_address': {
+                                'interface': fallback_interface_address.find('interface').text if fallback_interface_address.find('interface') is not None else None,
+                                'ip': fallback_interface_address.find('ip').text if fallback_interface_address.find('ip') is not None else None,
+                            } if fallback_interface_address is not None else {},
+                        }
+
+                        # Remove None values from fallback interface_address
+                        fallback_dict['interface_address'] = {k: v for k, v in fallback_dict['interface_address'].items() if v is not None}
+
+                        # If interface_address is empty, remove it from fallback_dict
+                        if not fallback_dict['interface_address']:
+                            fallback_dict.pop('interface_address', None)
+
+                    source_translation_dict = {
+                        'dynamic_ip': {
+                            'translated_address_array': translated_addresses if translated_addresses else [],
+                            'fallback': fallback_dict,
+                        }
+                    }
+
+                    # Remove the translated_address_array key if it's empty
+                    if not source_translation_dict['dynamic_ip']['translated_address_array']:
+                        source_translation_dict['dynamic_ip'].pop('translated_address_array', None)
+
+                # Remove None values from source_translation_dict
+                if source_translation_dict:
+                    source_translation_dict = {k: v for k, v in source_translation_dict.items() if v is not None}
 
             nat_rule = {
                 'name': name,
                 'from': [member.text for member in from_zone] if from_zone else [],
+                'to': [member.text for member in to_zone] if to_zone else [],
                 'source': [member.text for member in source] if source else [],
-                'description': description.text if description else None,
                 'destination': [member.text for member in destination] if destination else [],
+                'service': service_value,
                 'nat_type': nat_type.text if nat_type else None,
+                'description': description.text if description else None,
                 'disabled': disabled.text == 'yes' if disabled else False,
-                'service': service.text if service else 'any',
-                'to': [to_zone.text for to_zone in entry.findall('to/member')] if to_zone else [],
-                'tag': [tag.text for tag in entry.findall('tag/member')] if tag else [],
-                'source_translation': self.etree_to_dict(source_translation) if source_translation else None,
-                'destination_translation': self.etree_to_dict(destination_translation) if destination_translation else None
+                'tag': [member.text for member in tag] if tag else [],
+                'source_translation': source_translation_dict,
+                'destination_translation': destination_translation_dict,
+                'active_active_device_binding': active_active_device_binding.text if active_active_device_binding else None
             }
 
-            # Filter out None values from the rule dictionary
+            # Filter out None values from nat_rule
             filtered_nat_rules = {k: v for k, v in nat_rule.items() if v is not None}
             nat_rules.append(filtered_nat_rules)
 
         return nat_rules
-    
+
     def nat_post_rules_entries(self):
         base_xpath_dict = {
-            'shared': './shared/post-rulebase/security/nat/entry',
+            'shared': './shared/post-rulebase/nat/rules/entry',
             'device-group': f'./devices/entry/device-group/entry[@name="{self.device_group_name}"]/post-rulebase/nat/rules/entry'
         }
 
         base_xpath = self._get_base_xpath(base_xpath_dict)
 
-        # Return an empty list if the configuration is local or if no base_xpath is found
         if self.config_type == 'local' or not base_xpath:
             return []
 
@@ -969,33 +1071,136 @@ class XMLParser:
         for entry in self.root.findall(base_xpath):
             name = entry.get('name')
             from_zone = entry.findall('from/member')
+            to_zone = entry.findall('to/member')
             source = entry.findall('source/member')
-            description = entry.find('description')
             destination = entry.findall('destination/member')
+            service = entry.find('service')
             nat_type = entry.find('nat-type')
+            description = entry.find('description')
             disabled = entry.find('disabled')
-            service = entry.find('service/member')
             tag = entry.findall('tag/member')
-            to_zone = entry.find('to/member')
             source_translation = entry.find('source-translation')
             destination_translation = entry.find('destination-translation')
+            active_active_device_binding = entry.find('active-active-device-binding')
+
+            # Ensure service is correctly extracted
+            service_value = service.text if service is not None else 'any'
+
+            # Parsing destination_translation to match OpenAPI specification
+            destination_translation_dict = None
+            if destination_translation is not None:
+                translated_address = destination_translation.find('translated-address')
+                translated_port = destination_translation.find('translated-port')
+                dns_rewrite = destination_translation.find('dns-rewrite')
+
+                destination_translation_dict = {
+                    'translated_address_single': translated_address.text if translated_address is not None else None,
+                    'translated_port': int(translated_port.text) if translated_port is not None else None,
+                    'dns_rewrite': {
+                        'direction': dns_rewrite.find('direction').text if dns_rewrite is not None else None
+                    } if dns_rewrite is not None else None
+                }
+                # Remove None values
+                destination_translation_dict = {k: v for k, v in destination_translation_dict.items() if v is not None}
+
+            # Parsing source_translation to match OpenAPI specification
+            source_translation_dict = None
+            if source_translation is not None:
+                dynamic_ip_and_port = source_translation.find('dynamic-ip-and-port')
+                static_ip = source_translation.find('static-ip')
+                dynamic_ip = source_translation.find('dynamic-ip')
+
+                if dynamic_ip_and_port is not None:
+                    interface_address = dynamic_ip_and_port.find('interface-address')
+                    translated_addresses = [addr.text.strip() for addr in dynamic_ip_and_port.findall('translated-address/member') if addr.text.strip()]
+
+                    dynamic_ip_and_port_dict = {}
+
+                    if interface_address is not None:
+                        dynamic_ip_and_port_dict['interface_address'] = {
+                            'interface': interface_address.find('interface').text if interface_address.find('interface') is not None else None,
+                            'ip': interface_address.find('ip').text if interface_address.find('ip') is not None else None,
+                        }
+                        # Remove None values from interface_address
+                        dynamic_ip_and_port_dict['interface_address'] = {k: v for k, v in dynamic_ip_and_port_dict['interface_address'].items() if v is not None}
+
+                        # If interface_address is empty, remove it from dynamic_ip_and_port_dict
+                        if not dynamic_ip_and_port_dict['interface_address']:
+                            dynamic_ip_and_port_dict.pop('interface_address', None)
+
+                    if translated_addresses:
+                        dynamic_ip_and_port_dict['translated_address_array'] = translated_addresses
+
+                    source_translation_dict = {
+                        'dynamic_ip_and_port': dynamic_ip_and_port_dict
+                    }
+
+                elif static_ip is not None:
+                    translated_address_single = static_ip.find('translated-address')
+                    bi_directional = static_ip.find('bi-directional')
+
+                    source_translation_dict = {
+                        'static_ip': {
+                            'translated_address_single': translated_address_single.text if translated_address_single is not None else None,
+                            'bi_directional': bi_directional.text if bi_directional is not None else None,
+                        }
+                    }
+                elif dynamic_ip is not None:
+                    translated_addresses = [addr.text.strip() for addr in dynamic_ip.findall('translated-address/member') if addr.text.strip()]
+                    fallback = dynamic_ip.find('fallback')
+
+                    fallback_dict = None
+                    if fallback is not None:
+                        fallback_translated_addresses = [addr.text.strip() for addr in fallback.findall('translated-address/member') if addr.text.strip()]
+                        fallback_interface_address = fallback.find('interface-address')
+
+                        fallback_dict = {
+                            'translated_address_array': fallback_translated_addresses if fallback_translated_addresses else [],
+                            'interface_address': {
+                                'interface': fallback_interface_address.find('interface').text if fallback_interface_address.find('interface') is not None else None,
+                                'ip': fallback_interface_address.find('ip').text if fallback_interface_address.find('ip') is not None else None,
+                            } if fallback_interface_address is not None else {},
+                        }
+
+                        # Remove None values from fallback interface_address
+                        fallback_dict['interface_address'] = {k: v for k, v in fallback_dict['interface_address'].items() if v is not None}
+
+                        # If interface_address is empty, remove it from fallback_dict
+                        if not fallback_dict['interface_address']:
+                            fallback_dict.pop('interface_address', None)
+
+                    source_translation_dict = {
+                        'dynamic_ip': {
+                            'translated_address_array': translated_addresses if translated_addresses else [],
+                            'fallback': fallback_dict,
+                        }
+                    }
+
+                    # Remove the translated_address_array key if it's empty
+                    if not source_translation_dict['dynamic_ip']['translated_address_array']:
+                        source_translation_dict['dynamic_ip'].pop('translated_address_array', None)
+
+                # Remove None values from source_translation_dict
+                if source_translation_dict:
+                    source_translation_dict = {k: v for k, v in source_translation_dict.items() if v is not None}
 
             nat_rule = {
                 'name': name,
                 'from': [member.text for member in from_zone] if from_zone else [],
+                'to': [member.text for member in to_zone] if to_zone else [],
                 'source': [member.text for member in source] if source else [],
-                'description': description.text if description else None,
                 'destination': [member.text for member in destination] if destination else [],
+                'service': service_value,
                 'nat_type': nat_type.text if nat_type else None,
+                'description': description.text if description else None,
                 'disabled': disabled.text == 'yes' if disabled else False,
-                'service': service.text if service else 'any',
-                'to': [to_zone.text for to_zone in entry.findall('to/member')] if to_zone else [],
-                'tag': [tag.text for tag in entry.findall('tag/member')] if tag else [],
-                'source_translation': self.etree_to_dict(source_translation) if source_translation else None,
-                'destination_translation': self.etree_to_dict(destination_translation) if destination_translation else None
+                'tag': [member.text for member in tag] if tag else [],
+                'source_translation': source_translation_dict,
+                'destination_translation': destination_translation_dict,
+                'active_active_device_binding': active_active_device_binding.text if active_active_device_binding else None
             }
 
-            # Filter out None values from the rule dictionary
+            # Filter out None values from nat_rule
             filtered_nat_rules = {k: v for k, v in nat_rule.items() if v is not None}
             nat_rules.append(filtered_nat_rules)
 

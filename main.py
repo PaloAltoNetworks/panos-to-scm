@@ -17,7 +17,7 @@ def setup_logging():
     logger.setLevel(logging.DEBUG)
     
     # Log rotation setup: Rotates every midnight, keeps last 2 days of logs
-    handler = TimedRotatingFileHandler('debug-log.txt', utc= True, when="midnight", interval=1, backupCount=1)
+    handler = TimedRotatingFileHandler('debug-log.txt', utc=True, when="midnight", interval=1, backupCount=1)
     handler.setFormatter(logging.Formatter('%(asctime)s - %(levelname)s - %(message)s'))
     logger.addHandler(handler)
 
@@ -51,8 +51,8 @@ def initialize_api_session():
     session.authenticate()
     return session
 
-def setup_scm_object_manager(session, configure, obj_types, sec_obj, folder_scope):
-    return SCMObjectManager(session, folder_scope, configure, obj, obj_types, sec_obj)
+def setup_scm_object_manager(session, configure, obj_types, sec_obj, nat_obj, folder_scope):
+    return SCMObjectManager(session, folder_scope, configure, obj, obj_types, sec_obj, nat_obj)
 
 def main(config): 
     try:
@@ -72,9 +72,13 @@ def main(config):
         parse.device_group_name = device_group_name
         parsed_data = parse.parse_all()
 
-        scm_obj_manager = setup_scm_object_manager(api_session, configure, config.obj_types, config.sec_obj, folder_scope)
+        scm_obj_manager = setup_scm_object_manager(api_session, configure, config.obj_types, config.sec_obj, config.nat_obj, folder_scope)
+        '''
+        Below three lines process Object, Security Rules and NAT rules. You can comment out a line to not run
+        '''
         scm_obj_manager.process_objects(parsed_data, folder_scope, device_group_name, max_workers=6)
         scm_obj_manager.process_security_rules(api_session, config.sec_obj, parsed_data, xml_file_path, limit=config.limit)
+        scm_obj_manager.process_nat_rules(api_session, config.nat_obj, parsed_data, xml_file_path, limit=config.limit)
 
         end_time = time.time()
         logger.info(f"Script execution time: {end_time - start_time:.2f} seconds")

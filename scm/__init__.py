@@ -23,6 +23,7 @@ import json
 
 class PanApiHandler:
     BASE_URL = "https://api.sase.paloaltonetworks.com"
+    # BASE_URL = "https://api.strata.paloaltonetworks.com"
 
     def __init__(self, session):
         self.session = session

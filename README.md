@@ -13,7 +13,8 @@ cd panos-to-scm
 "pip install ."
 
 ### Step 3: SCM and PANOS Credentials
-
+- **Common Services IAM account**
+  - **Generate Service Account** Directions -> https://docs.paloaltonetworks.com/common-services/identity-and-access-access-management/manage-identity-and-access/add-service-accounts
 - **SCM Credentials**: The credentials needed to request an access token can be defined in a configuration located at "$HOME/.panapi/config.yml"
   - **How to get there**:
   - **Window**s: `C:\users\<username>\.panapi\config.yml`
@@ -52,7 +53,7 @@ palo_api_token: xxxxxxxxxxxxxxxxxxxxxx
 - **URL Filter Profiles**
 - **Vulnerability Profiles**
 - **Anti-Spyware Profiles**
-- **Anti-Virus Profiles**: SCM combines Virus/WildFire together.. As of now, it's importing Anti-Virus (but decoder's do not show currently)
+- **Wildfire/Anti-Virus Profiles**: This has been default disabled in /config/ as this feature isn't fully API supported
 - **Profile Groups**
 - **Tags**
 - **Address Objects**
@@ -62,4 +63,4 @@ palo_api_token: xxxxxxxxxxxxxxxxxxxxxx
 - **Application Filters**
 - **Application Groups**
 - **Security Rules**
-- **NAT Rules**: API is not open yet, not tested.. Will test when API is open
+- **NAT Rules**: New feature, migration only supports initial commit. There is no ability to "move" rules currently

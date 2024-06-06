@@ -39,7 +39,7 @@ palo_api_token: xxxxxxxxxxxxxxxxxxxxxx
 ### Step 4: Executing main.py
 - If you run `main.py` as is, it'll ask if you want to fetch a new `running_config.xml` from your PANOS Endpoint
 - If you want to target specific Objects you can run `python main.py -o Tag,Address,AddressGroup` or any combo.
-- - You can target Tag, Address, AddressGroup, Service, ServiceGroup, etc, etc..
+- - You can do `python main.py -h` to see supported inputs
 - If you want to use an offline XML file, then default XML file name must be in project directory and named `running_config.xml`
 - Otherwise, it'll get the full running config from your PANOS device(controlled at $HOME/.panapi/config.yml)
 - Script will Parse all XML and create dictionary of object types and security rules

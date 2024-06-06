@@ -12,25 +12,21 @@ import scm.obj as obj
 import argparse
 
 def setup_logging():
-    # Setting up the logging configuration
     logger = logging.getLogger('')
     logger.setLevel(logging.DEBUG)
     
-    # Log rotation setup: Rotates every midnight, keeps last 2 days of logs
     handler = TimedRotatingFileHandler('debug-log.txt', utc=True, when="midnight", interval=1, backupCount=1)
     handler.setFormatter(logging.Formatter('%(asctime)s - %(levelname)s - %(message)s'))
     logger.addHandler(handler)
 
-    # Console handler to print INFO and above level logs to the console
     console_handler = logging.StreamHandler()
     console_handler.setLevel(logging.INFO)
     console_handler.setFormatter(logging.Formatter('%(asctime)s - %(levelname)s - %(message)s'))
     logger.addHandler(console_handler)
 
 def get_xml_file_path(config, logger):
-    # Ask the user if they want to retrieve a new config from Palo Alto NGFW
     user_choice = input("Do you want to retrieve new config from Palo Alto NGFW? (yes/no): ").strip().lower()
-    xml_file_path = "running_config.xml"  # Default to the downloaded config
+    xml_file_path = "running_config.xml"
 
     if user_choice == 'yes':
         palo_token_manager = PaloToken()
@@ -48,28 +44,27 @@ def get_xml_file_path(config, logger):
     return xml_file_path
 
 def initialize_api_session():
-    # Initialize and authenticate the API session
     session = PanApiSession()
     session.authenticate()
     return session
 
 def setup_scm_object_manager(session, configure, obj_types, sec_obj, nat_obj, folder_scope):
-    # Setup the SCMObjectManager with the necessary parameters
     return SCMObjectManager(session, folder_scope, configure, obj, obj_types, sec_obj, nat_obj)
 
-def run_selected_objects(parsed_data, scm_obj_manager, folder_scope, device_group_name, obj_type):
-    # Function to process the selected object type
-    obj_type_name = obj_type.__name__
-    logger.info(f"Looking for key '{obj_type_name}' in parsed_data.")
-    
-    if obj_type_name not in parsed_data:
-        logger.warning(f"Key '{obj_type_name}' not found in parsed_data. Available keys: {list(parsed_data.keys())}")
-        return
+def run_selected_objects(parsed_data, scm_obj_manager, folder_scope, device_group_name, obj_types):
+    for obj_type in obj_types:
+        obj_type_name = obj_type.__name__
+        
+        logger.info(f"Looking for key '{obj_type_name}' in parsed_data.")
+        
+        if obj_type_name not in parsed_data:
+            logger.warning(f"Key '{obj_type_name}' not found in parsed_data. Available keys: {list(parsed_data.keys())}")
+            continue
 
-    logger.info(f"Processing object type: {obj_type_name}")
-    scm_obj_manager.process_objects({obj_type_name: parsed_data[obj_type_name]}, folder_scope, device_group_name)
+        logger.info(f"Processing object type: {obj_type_name}")
+        scm_obj_manager.process_objects({obj_type_name: parsed_data[obj_type_name]}, folder_scope, device_group_name)
 
-def main(config, run_object=None):
+def main(config, run_objects=None):
     try:
         start_time = time.time()
         logging.info(f"Script started at {time.ctime(start_time)}")
@@ -88,17 +83,17 @@ def main(config, run_object=None):
         parsed_data = parse.parse_all()
         logger.debug(f"Parsed data keys: {list(parsed_data.keys())}")
 
-        if run_object:
-            logger.info(f'Running specific object: {run_object}')
-            objects_to_run = [obj for obj in config.obj_types if obj.__name__ == run_object]
-            if not objects_to_run:
-                logger.error(f"No object found with the name {run_object}")
-            else:
-                # Filter parsed_data to include only the selected object type
-                filtered_parsed_data = {k: v for k, v in parsed_data.items() if k == run_object}
+        if run_objects:
+            run_objects_list = run_objects.split(',')
+            logger.info(f'Running specific objects: {run_objects_list}')
+            for obj_name in run_objects_list:
+                objects_to_run = [obj for obj in config.obj_types if obj.__name__ == obj_name]
+                if not objects_to_run:
+                    logger.error(f"No valid object found with the name {obj_name}")
+                    continue
+                filtered_parsed_data = {k: v for k, v in parsed_data.items() if k == obj_name}
                 scm_obj_manager = setup_scm_object_manager(api_session, configure, objects_to_run, config.sec_obj, config.nat_obj, folder_scope)
-                for obj_to_run in objects_to_run:
-                    run_selected_objects(filtered_parsed_data, scm_obj_manager, folder_scope, device_group_name, obj_to_run)
+                run_selected_objects(filtered_parsed_data, scm_obj_manager, folder_scope, device_group_name, objects_to_run)
         else:
             scm_obj_manager = setup_scm_object_manager(api_session, configure, config.obj_types, config.sec_obj, config.nat_obj, folder_scope)
             scm_obj_manager.process_objects(parsed_data, folder_scope, device_group_name, max_workers=6)
@@ -121,9 +116,12 @@ if __name__ == "__main__":
     begin_time = time.time()
     config_manager = ConfigurationManager()
     config = config_manager.app_config
+
+    obj_type_names = [obj.__name__ for obj in config.obj_types]
+    obj_type_help = "Specify the objects to run, separated by commas. Supported objects: " + ", ".join(obj_type_names)
     
     parser = argparse.ArgumentParser(description="Run specific objects in the project")
-    parser.add_argument('-o', '--object', type=str, help="Specify the object to run")
+    parser.add_argument('-o', '--objects', type=str, help=obj_type_help)
     args = parser.parse_args()
     
-    main(config, run_object=args.object)
+    main(config, run_objects=args.objects)

@@ -48,6 +48,7 @@ palo_api_token: xxxxxxxxxxxxxxxxxxxxxx
 
 ### Command Line Options:
 - Run Specific Objects: python main.py -o Tag,Address,AddressGroup
+  - use main.py -h for list of all avilable object types. Put them in comma separated
 - Run Security Rules Only: python main.py -s
 - Run NAT Rules Only: python main.py -n
 - Run All Objects, Security Rules, and NAT Rules: python main.py -a

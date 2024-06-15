@@ -1,6 +1,10 @@
 ## panos-to-scm
-- **Purpose:** 
-    - Pull Panorama Device Group OR Local PANOS Firewall config using their XMLAPI and migrate into Strata Cloud Manager.. 
+- **Pull Panorama Device Group OR Local PANOS Firewall config using their XMLAPI and migrate into Strata Cloud Manager** 
+
+## Understand following items before running
+- **This script is as is, at your own risk, review license**
+- **SCM supports "security profile groups" and not individual "security profiles" - make sure your policy reflects that**
+- **SCM API doesn't fully support Antivirus/Wildfire API. Manually create this as it's treated as one profile. Script will reference "AntiVirus" profile from PANOS for security profile groups**
 
 ### Step 1: Clone the Repository
 

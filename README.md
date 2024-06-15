@@ -38,8 +38,6 @@ palo_api_token: xxxxxxxxxxxxxxxxxxxxxx
 
 ### Step 4: Executing main.py
 - If you run `main.py` as is, it'll ask if you want to fetch a new `running_config.xml` from your PANOS Endpoint
-- If you want to target specific Objects you can run `python main.py -o Tag,Address,AddressGroup` or any combo.
-- - You can do `python main.py -h` to see supported inputs
 - If you want to use an offline XML file, then default XML file name must be in project directory and named `running_config.xml`
 - Otherwise, it'll get the full running config from your PANOS device(controlled at $HOME/.panapi/config.yml)
 - Script will Parse all XML and create dictionary of object types and security rules
@@ -47,6 +45,13 @@ palo_api_token: xxxxxxxxxxxxxxxxxxxxxx
 - Also handles rule ordering if something gets out of order(order determined by XML) which occurs in parallel processing
 - Script currently will update rules or objects if value has changed - example, address-group1 has members A,B,C in SCM
 - If PANOS config has A,B,C,D - it will  update and PUT D into it..
+
+### Command Line Options:
+- Run Specific Objects: python main.py -o Tag,Address,AddressGroup
+- Run Security Rules Only: python main.py -s
+- Run NAT Rules Only: python main.py -n
+- Run All Objects, Security Rules, and NAT Rules: python main.py -a
+- Default Behavior: Running python main.py without any options will run all objects only.
 
 ### Currently Supported Features:
 

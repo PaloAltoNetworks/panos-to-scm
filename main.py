@@ -64,7 +64,7 @@ def run_selected_objects(parsed_data, scm_obj_manager, folder_scope, device_grou
         logger.info(f"Processing object type: {obj_type_name}")
         scm_obj_manager.process_objects({obj_type_name: parsed_data[obj_type_name]}, folder_scope, device_group_name)
 
-def main(config, run_objects=None):
+def main(config, run_objects=None, run_security=False, run_nat=False):
     try:
         start_time = time.time()
         logging.info(f"Script started at {time.ctime(start_time)}")
@@ -96,9 +96,12 @@ def main(config, run_objects=None):
                 run_selected_objects(filtered_parsed_data, scm_obj_manager, folder_scope, device_group_name, objects_to_run)
         else:
             scm_obj_manager = setup_scm_object_manager(api_session, configure, config.obj_types, config.sec_obj, config.nat_obj, folder_scope)
-            scm_obj_manager.process_objects(parsed_data, folder_scope, device_group_name, max_workers=6)
-            scm_obj_manager.process_security_rules(api_session, config.sec_obj, parsed_data, xml_file_path, limit=config.limit)
-            scm_obj_manager.process_nat_rules(api_session, config.nat_obj, parsed_data, xml_file_path, limit=config.limit)
+            if run_security:
+                scm_obj_manager.process_security_rules(api_session, config.sec_obj, parsed_data, xml_file_path, limit=config.limit)
+            elif run_nat:
+                scm_obj_manager.process_nat_rules(api_session, config.nat_obj, parsed_data, xml_file_path, limit=config.limit)
+            else:
+                scm_obj_manager.process_objects(parsed_data, folder_scope, device_group_name, max_workers=6)
 
         end_time = time.time()
         logger.info(f"Script execution time: {end_time - start_time:.2f} seconds")
@@ -122,6 +125,8 @@ if __name__ == "__main__":
     
     parser = argparse.ArgumentParser(description="Run specific objects in the project")
     parser.add_argument('-o', '--objects', type=str, help=obj_type_help)
+    parser.add_argument('-s', '--security-rules', action='store_true', help="Run security rules processing")
+    parser.add_argument('-n', '--nat-rules', action='store_true', help="Run NAT rules processing")
     args = parser.parse_args()
     
-    main(config, run_objects=args.objects)
+    main(config, run_objects=args.objects, run_security=args.security_rules, run_nat=args.nat_rules)

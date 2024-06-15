@@ -161,7 +161,7 @@ class Processor:
         current_order = [rule['name'] for rule in current_rules]
         desired_order = [rule['name'] for rule in original_rules if rule['name'] in current_rule_ids]
 
-        max_attempts = 8
+        max_attempts = 16
         attempts = 0
 
         while current_order != desired_order and attempts < max_attempts:

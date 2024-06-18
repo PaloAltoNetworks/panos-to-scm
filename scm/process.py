@@ -319,7 +319,7 @@ class SCMObjectManager:
             else:
                 logging.info(f"No new {entry_type_name}s entries to create from parsed data")
 
-    def process_rules(self, api_handler, rule_obj, parsed_data, xml_file_path, limit='10000', rule_type='security'):
+    def process_rules(self, rule_obj, parsed_data, xml_file_path, limit='10000', rule_type='security'):
         if rule_type == 'security':
             pre_rules = parsed_data['security_pre_rules']
             post_rules = parsed_data['security_post_rules']

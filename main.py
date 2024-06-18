@@ -87,9 +87,9 @@ def main(config, run_objects=None, run_security=False, run_nat=False, run_all=Fa
 
         if run_all:
             scm_obj_manager.process_objects(parsed_data, folder_scope, device_group_name, max_workers=6)
-            scm_obj_manager.process_rules(api_session, config.sec_obj, parsed_data, xml_file_path, limit=config.limit, rule_type='security')
+            scm_obj_manager.process_rules(config.sec_obj, parsed_data, xml_file_path, limit=config.limit, rule_type='security')
             configure.set_max_workers(1)  # Set max workers to 1 for NAT rules
-            scm_obj_manager.process_rules(api_session, config.nat_obj, parsed_data, xml_file_path, limit=config.limit, rule_type='nat')
+            scm_obj_manager.process_rules(config.nat_obj, parsed_data, xml_file_path, limit=config.limit, rule_type='nat')
         elif run_objects:
             run_objects_list = run_objects.split(',')
             logger.info(f'Running specific objects: {run_objects_list}')
@@ -102,10 +102,10 @@ def main(config, run_objects=None, run_security=False, run_nat=False, run_all=Fa
                 run_selected_objects(filtered_parsed_data, scm_obj_manager, folder_scope, device_group_name, objects_to_run)
         else:
             if run_security:
-                scm_obj_manager.process_rules(api_session, config.sec_obj, parsed_data, xml_file_path, limit=config.limit, rule_type='security')
+                scm_obj_manager.process_rules(config.sec_obj, parsed_data, xml_file_path, limit=config.limit, rule_type='security')
             elif run_nat:
                 configure.set_max_workers(1)  # Set max workers to 1 for NAT rules
-                scm_obj_manager.process_rules(api_session, config.nat_obj, parsed_data, xml_file_path, limit=config.limit, rule_type='nat')
+                scm_obj_manager.process_rules(config.nat_obj, parsed_data, xml_file_path, limit=config.limit, rule_type='nat')
             else:
                 scm_obj_manager.process_objects(parsed_data, folder_scope, device_group_name, max_workers=6)
 

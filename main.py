@@ -83,11 +83,13 @@ def main(config, run_objects=None, run_security=False, run_nat=False, run_all=Fa
         parsed_data = parse.parse_all()
         logger.debug(f"Parsed data keys: {list(parsed_data.keys())}")
 
+        scm_obj_manager = setup_scm_object_manager(api_session, configure, config.obj_types, config.sec_obj, config.nat_obj, folder_scope)
+
         if run_all:
-            scm_obj_manager = setup_scm_object_manager(api_session, configure, config.obj_types, config.sec_obj, config.nat_obj, folder_scope)
             scm_obj_manager.process_objects(parsed_data, folder_scope, device_group_name, max_workers=6)
-            scm_obj_manager.process_security_rules(api_session, config.sec_obj, parsed_data, xml_file_path, limit=config.limit)
-            scm_obj_manager.process_nat_rules(api_session, config.nat_obj, parsed_data, xml_file_path, limit=config.limit)
+            scm_obj_manager.process_rules(api_session, config.sec_obj, parsed_data, xml_file_path, limit=config.limit, rule_type='security')
+            configure.set_max_workers(1)  # Set max workers to 1 for NAT rules
+            scm_obj_manager.process_rules(api_session, config.nat_obj, parsed_data, xml_file_path, limit=config.limit, rule_type='nat')
         elif run_objects:
             run_objects_list = run_objects.split(',')
             logger.info(f'Running specific objects: {run_objects_list}')
@@ -97,14 +99,13 @@ def main(config, run_objects=None, run_security=False, run_nat=False, run_all=Fa
                     logger.error(f"No valid object found with the name {obj_name}")
                     continue
                 filtered_parsed_data = {k: v for k, v in parsed_data.items() if k == obj_name}
-                scm_obj_manager = setup_scm_object_manager(api_session, configure, objects_to_run, config.sec_obj, config.nat_obj, folder_scope)
                 run_selected_objects(filtered_parsed_data, scm_obj_manager, folder_scope, device_group_name, objects_to_run)
         else:
-            scm_obj_manager = setup_scm_object_manager(api_session, configure, config.obj_types, config.sec_obj, config.nat_obj, folder_scope)
             if run_security:
-                scm_obj_manager.process_security_rules(api_session, config.sec_obj, parsed_data, xml_file_path, limit=config.limit)
+                scm_obj_manager.process_rules(api_session, config.sec_obj, parsed_data, xml_file_path, limit=config.limit, rule_type='security')
             elif run_nat:
-                scm_obj_manager.process_nat_rules(api_session, config.nat_obj, parsed_data, xml_file_path, limit=config.limit)
+                configure.set_max_workers(1)  # Set max workers to 1 for NAT rules
+                scm_obj_manager.process_rules(api_session, config.nat_obj, parsed_data, xml_file_path, limit=config.limit, rule_type='nat')
             else:
                 scm_obj_manager.process_objects(parsed_data, folder_scope, device_group_name, max_workers=6)
 

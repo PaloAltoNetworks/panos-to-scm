@@ -661,12 +661,10 @@ class XMLParser:
         for entry in self.root.findall(base_xpath):
             name = entry.get('name')
             members = entry.find('members')
-            description = entry.find('description')
             tag = entry.find('tag')
 
             service_group = {
                 'name': name,
-                'description': description.text if description is not None else None,
                 'tag': [member.text for member in tag.findall('member')] if tag is not None else [],
                 'members': [member.text for member in members.findall('member')] if members is not None else []
             }

@@ -5,6 +5,7 @@
 - **This script is as is, at your own risk, review license**
 - **SCM supports "security profile groups" and not individual "security profiles" - make sure your policy reflects that**
 - **SCM API doesn't fully support Antivirus/Wildfire API. Manually create this as it's treated as one profile. Script will reference "AntiVirus" profile from PANOS for security profile groups**
+- **SCM API for security policies do not support adding schedules, if you have policies with schedules, manually add them to the policy**
 
 ### Step 1: Clone the Repository
 
@@ -72,6 +73,7 @@ palo_api_token: xxxxxxxxxxxxxxxxxxxxxx
 - **Address Groups**
 - **Service Objects**
 - **Service Groups**
+- **Applications**: This is new feature, please check your import for verification.
 - **Application Filters**
 - **Application Groups**
 - **Security Rules**

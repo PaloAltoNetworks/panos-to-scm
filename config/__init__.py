@@ -10,7 +10,7 @@ class AppConfig:
         self.xml_file_path = 'running_config.xml'
         self.limit = '10000'
         self.obj_types = [
-            obj.Tag, obj.Address, obj.AddressGroup, obj.Service, 
+            obj.Tag, obj.Application, obj.Address, obj.AddressGroup, obj.Service, 
             obj.ServiceGroup, obj.ExternalDynamicList, obj.URLCategory, 
             obj.URLAccessProfile, obj.VulnerabilityProtectionProfile, 
             obj.AntiSpywareProfile, 

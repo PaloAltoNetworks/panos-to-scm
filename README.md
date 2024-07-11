@@ -73,7 +73,7 @@ palo_api_token: xxxxxxxxxxxxxxxxxxxxxx
 - **Address Groups**
 - **Service Objects**
 - **Service Groups**
-- **Applications**: This is new feature, please check your import for verification.
+- **Applications**: This is new feature, please check your import for verification. Thank you Albert Estevez Polo for the collaboration
 - **Application Filters**
 - **Application Groups**
 - **Security Rules**

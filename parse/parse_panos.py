@@ -77,7 +77,8 @@ class XMLParser:
             'security_post_rules': self.security_post_rules_entries(),
             'nat_pre_rules': self.nat_pre_rules_entries(),
             'nat_post_rules': self.nat_post_rules_entries(),
-            'Application': self.application_entries()  # Add application entries here
+            'Application': self.application_entries(),
+            'Zones': self.zones()
         }
         return parsed_data
 
@@ -100,7 +101,7 @@ class XMLParser:
         applications = []
         
         for entry in self.root.findall(base_xpath):
-            application = convert_application(entry)
+            application = self.convert_application(entry)
             applications.append(application)
         
         return applications
@@ -728,21 +729,30 @@ class XMLParser:
         for entry in self.root.findall(base_xpath):
             filter_entry = {"name": entry.get("name")}
 
-            # Extract categories, subcategories, and technologies
-            for category in ["category", "subcategory", "technology"]:
+            # Extract categories, subcategories, technologies, and other attributes
+            for category in ["category", "subcategory", "technology", "risk", "saas-certifications", "saas-risk"]:
                 members = entry.find(f"./{category}")
                 if members is not None:
-                    filter_entry[category] = [member.text for member in members.findall("./member")]
+                    filter_entry[category.replace('-', '_')] = [member.text for member in members.findall("./member")]
 
             # Handle tagging
-            tagging = entry.find("./tagging/tag/member")
+            tagging = entry.find("./tagging")
             if tagging is not None:
-                filter_entry["tagging"] = {"tag": [tag.text for tag in entry.findall("./tagging/tag/member")]}
-            else:
-                filter_entry["tagging"] = {"no_tag": True}
+                no_tag = tagging.find("no-tag")
+                if no_tag is not None:
+                    filter_entry["tagging"] = {"no_tag": self.toBool(no_tag.text.strip())}
 
-            # Add any other required boolean options or elements here
-            # Example: filter_entry["evasive"] = True if some_condition else None
+                tags = tagging.find("./tag/member")
+                if tags is not None:
+                    filter_entry["tagging"] = {"tag": [tag.text for tag in tagging.findall("./tag/member")]}
+                else:
+                    filter_entry["tagging"] = {"no_tag": True}
+
+            # Boolean attributes
+            for attribute in ["evasive", "excessive-bandwidth-use", "used-by-malware", "transfers-files", "has-known-vulnerabilities", "tunnels-other-apps", "prone-to-misuse", "pervasive", "is-saas", "new-appid"]:
+                element = entry.find(attribute)
+                if element is not None:
+                    filter_entry[attribute.replace('-', '_')] = self.toBool(element.text.strip())
 
             application_filters.append(filter_entry)
 
@@ -1202,297 +1212,297 @@ class XMLParser:
 
         return nat_rules
 
-def convert_application(application):
-    obj = {}
-    obj['name'] = application.attrib['name']
-    if application.find("description") is not None:
-        obj['description'] = application.find("description").text.strip()
+    def convert_application(self, application):
+        obj = {}
+        obj['name'] = application.attrib['name']
+        if application.find("description") is not None:
+            obj['description'] = application.find("description").text.strip()
 
-    subcategory = application.find("subcategory")
-    if subcategory is not None:
-        obj['subcategory'] = subcategory.text.strip()
+        subcategory = application.find("subcategory")
+        if subcategory is not None:
+            obj['subcategory'] = subcategory.text.strip()
 
-    category = application.find("category")
-    if category is not None:
-        obj['category'] = category.text.strip()
+        category = application.find("category")
+        if category is not None:
+            obj['category'] = category.text.strip()
 
-    technology = application.find("technology")
-    if technology is not None:
-        obj['technology'] = technology.text.strip()
+        technology = application.find("technology")
+        if technology is not None:
+            obj['technology'] = technology.text.strip()
 
-    parentapp = application.find("parent-app")
-    if parentapp is not None:
-        obj['parent_app'] = parentapp.text.strip()
+        parentapp = application.find("parent-app")
+        if parentapp is not None:
+            obj['parent_app'] = parentapp.text.strip()
 
-    risk = application.find("risk")
-    if risk is not None:
-        obj['risk'] = int(risk.text.strip())
+        risk = application.find("risk")
+        if risk is not None:
+            obj['risk'] = int(risk.text.strip())
 
-    transferfiles = application.find("able-to-transfer-file")
-    if transferfiles is not None:
-        obj['able_to_transfer_file'] = toBool(transferfiles.text.strip())
+        transferfiles = application.find("able-to-transfer-file")
+        if transferfiles is not None:
+            obj['able_to_transfer_file'] = self.toBool(transferfiles.text.strip())
 
-    noappidCaching = application.find("no-appid-caching")
-    if noappidCaching is not None:
-        obj['no_appid_caching'] = toBool(noappidCaching.text.strip())
+        noappidCaching = application.find("no-appid-caching")
+        if noappidCaching is not None:
+            obj['no_appid_caching'] = self.toBool(noappidCaching.text.strip())
 
-    tunnapps = application.find("tunnel-applications")
-    if tunnapps is not None:
-        obj['tunnel_applications'] = toBool(tunnapps.text.strip())
+        tunnapps = application.find("tunnel-applications")
+        if tunnapps is not None:
+            obj['tunnel_applications'] = self.toBool(tunnapps.text.strip())
 
-    tunnelotherapps = application.find("tunnel-other-application")
-    if tunnelotherapps is not None:
-        obj['tunnel_other_application'] = toBool(tunnelotherapps.text.strip())
+        tunnelotherapps = application.find("tunnel-other-application")
+        if tunnelotherapps is not None:
+            obj['tunnel_other_application'] = self.toBool(tunnelotherapps.text.strip())
 
-    pervasive = application.find("pervasive-use")
-    if pervasive is not None:
-        obj['pervasive_use'] = toBool(pervasive.text.strip())
+        pervasive = application.find("pervasive-use")
+        if pervasive is not None:
+            obj['pervasive_use'] = self.toBool(pervasive.text.strip())
 
-    evasive = application.find("evasive-behavior")
-    if evasive is not None:
-        obj['evasive_behavior'] = toBool(evasive.text.strip())
+        evasive = application.find("evasive-behavior")
+        if evasive is not None:
+            obj['evasive_behavior'] = self.toBool(evasive.text.strip())
 
-    algdisable = application.find("alg-disable-capability")
-    if algdisable is not None:
-        obj['alg_disable_capability'] = algdisable.text.strip()
+        algdisable = application.find("alg-disable-capability")
+        if algdisable is not None:
+            obj['alg_disable_capability'] = algdisable.text.strip()
 
-    consumebw = application.find("consume-big-bandwidth")
-    if consumebw is not None:
-        obj['consume_big_bandwidth'] = toBool(consumebw.text.strip())
+        consumebw = application.find("consume-big-bandwidth")
+        if consumebw is not None:
+            obj['consume_big_bandwidth'] = self.toBool(consumebw.text.strip())
 
-    prone = application.find("prone-to-misuse")
-    if prone is not None:
-        obj['prone_to_misuse'] = toBool(prone.text.strip())
+        prone = application.find("prone-to-misuse")
+        if prone is not None:
+            obj['prone_to_misuse'] = self.toBool(prone.text.strip())
 
-    malware = application.find("used-by-malware")
-    if malware is not None:
-        obj['used_by_malware'] = toBool(malware.text.strip())
+        malware = application.find("used-by-malware")
+        if malware is not None:
+            obj['used_by_malware'] = self.toBool(malware.text.strip())
 
-    vulns = application.find("has-known-vulnerability")
-    if vulns is not None:
-        obj['has_known_vulnerability'] = toBool(vulns.text.strip())
+        vulns = application.find("has-known-vulnerability")
+        if vulns is not None:
+            obj['has_known_vulnerability'] = self.toBool(vulns.text.strip())
 
-    # Scan
-    fileTypeIdent = application.find("file-type-ident")
-    if fileTypeIdent is not None:
-        obj['file_type_ident'] = toBool(fileTypeIdent.text.strip())
+        # Scan
+        fileTypeIdent = application.find("file-type-ident")
+        if fileTypeIdent is not None:
+            obj['file_type_ident'] = self.toBool(fileTypeIdent.text.strip())
 
-    virusIdent = application.find("virus-ident")
-    if virusIdent is not None:
-        obj['virus_ident'] = toBool(virusIdent.text.strip())
+        virusIdent = application.find("virus-ident")
+        if virusIdent is not None:
+            obj['virus_ident'] = self.toBool(virusIdent.text.strip())
 
-    dataIdent = application.find("data-ident")
-    if dataIdent is not None:
-        obj['data_ident'] = toBool(dataIdent.text.strip())
+        dataIdent = application.find("data-ident")
+        if dataIdent is not None:
+            obj['data_ident'] = self.toBool(dataIdent.text.strip())
 
-    # Timeouts
-    timeout = application.find('timeout')
-    if timeout is not None:
-        obj['timeout'] = int(timeout.text.strip())
+        # Timeouts
+        timeout = application.find('timeout')
+        if timeout is not None:
+            obj['timeout'] = int(timeout.text.strip())
 
-    udpTimeout = application.find('udp-timeout')
-    if udpTimeout is not None:
-        obj['udp_timeout'] = int(udpTimeout.text.strip())
+        udpTimeout = application.find('udp-timeout')
+        if udpTimeout is not None:
+            obj['udp_timeout'] = int(udpTimeout.text.strip())
 
-    tcpTimeout = application.find('tcp-timeout')
-    if tcpTimeout is not None:
-        obj['tcp_timeout'] = int(tcpTimeout.text.strip())
+        tcpTimeout = application.find('tcp-timeout')
+        if tcpTimeout is not None:
+            obj['tcp_timeout'] = int(tcpTimeout.text.strip())
 
-    tcpTimeWaitTimeout = application.find('tcp-time-wait-timeout')
-    if tcpTimeWaitTimeout is not None:
-        obj['tcp_time_wait_timeout'] = int(tcpTimeWaitTimeout.text.strip())
+        tcpTimeWaitTimeout = application.find('tcp-time-wait-timeout')
+        if tcpTimeWaitTimeout is not None:
+            obj['tcp_time_wait_timeout'] = int(tcpTimeWaitTimeout.text.strip())
 
-    tcpHalfClosedTimeout = application.find('tcp-half-closed-timeout')
-    if tcpHalfClosedTimeout is not None:
-        obj['tcp_half_closed_timeout'] = int(tcpHalfClosedTimeout.text.strip())
+        tcpHalfClosedTimeout = application.find('tcp-half-closed-timeout')
+        if tcpHalfClosedTimeout is not None:
+            obj['tcp_half_closed_timeout'] = int(tcpHalfClosedTimeout.text.strip())
 
-    # default
-    default = {}
-    port = application.find('default/port')
-    if port is not None:
-        members = port.findall(".//member")
-        if len(members) > 0:
-            default['port'] = list(set(member.text for member in members))
+        # default
+        default = {}
+        port = application.find('default/port')
+        if port is not None:
+            members = port.findall(".//member")
+            if len(members) > 0:
+                default['port'] = list(set(member.text for member in members))
 
-    identByIpPort = application.find('default/ident-by-ip-protocol')
-    if identByIpPort is not None:
-        default['ident_by_ip_protocol'] = identByIpPort.text.strip()
+        identByIpPort = application.find('default/ident-by-ip-protocol')
+        if identByIpPort is not None:
+            default['ident_by_ip_protocol'] = identByIpPort.text.strip()
 
-    identByIcmpType = application.find('default/ident-by-icmp-type')
-    if identByIcmpType is not None:
-        code = identByIcmpType.find("code")
-        if code is not None:
-            default['ident_by_icmp_type'] = {'code': code.text.strip()}
-        type = identByIcmpType.find("type")
-        if type is not None:
-            if default.get('ident_by_icmp_type') is None:
-                default['ident_by_icmp_type'] = {'type': type.text.strip()}
-            else:
-                default['ident_by_icmp_type'].update({'type': type.text.strip()})
+        identByIcmpType = application.find('default/ident-by-icmp-type')
+        if identByIcmpType is not None:
+            code = identByIcmpType.find("code")
+            if code is not None:
+                default['ident_by_icmp_type'] = {'code': code.text.strip()}
+            type = identByIcmpType.find("type")
+            if type is not None:
+                if default.get('ident_by_icmp_type') is None:
+                    default['ident_by_icmp_type'] = {'type': type.text.strip()}
+                else:
+                    default['ident_by_icmp_type'].update({'type': type.text.strip()})
 
-    identByIcmp6Type = application.find('default/ident-by-icmp6-type')
-    if identByIcmp6Type is not None:
-        code = identByIcmp6Type.find("code")
-        if code is not None:
-            default['ident_by_icmp6_type'] = {'code': code.text.strip()}
-        type = identByIcmp6Type.find("type")
-        if type is not None:
-            if default.get('ident_by_icmp6_type') is None:
-                default['ident_by_icmp6_type'] = {'type': type.text.strip()}
-            else:
-                default['ident_by_icmp6_type'].update({'type': type.text.strip()})
+        identByIcmp6Type = application.find('default/ident-by-icmp6-type')
+        if identByIcmp6Type is not None:
+            code = identByIcmp6Type.find("code")
+            if code is not None:
+                default['ident_by_icmp6_type'] = {'code': code.text.strip()}
+            type = identByIcmp6Type.find("type")
+            if type is not None:
+                if default.get('ident_by_icmp6_type') is None:
+                    default['ident_by_icmp6_type'] = {'type': type.text.strip()}
+                else:
+                    default['ident_by_icmp6_type'].update({'type': type.text.strip()})
 
-    if default != {}:
-        obj['default'] = default
+        if default != {}:
+            obj['default'] = default
 
-    # Tags
-    if application.find("tag") is not None:
-        tags = application.findall(".//tag/member")
-        obj["tag"] = [tag.text for tag in tags]
+        # Tags
+        if application.find("tag") is not None:
+            tags = application.findall(".//tag/member")
+            obj["tag"] = [tag.text for tag in tags]
 
-    # signature
-    signature = application.find("signature")
-    signatures = []
-    if signature is not None:
-        sigs = signature.findall("./entry")
-        if sigs is not None:
-            for entry in sigs:
-                objSignature = {}
-                objSignature['name'] = entry.attrib['name']
-                comment = entry.find("comment")
-                if comment is not None:
-                    objSignature['comment'] = comment.text.strip()
-                scope = entry.find("scope")
-                if scope is not None:
-                    objSignature['scope'] = scope.text.strip()
-                orderFree = entry.find("order-free")
-                if orderFree is not None:
-                    objSignature['order_free'] = toBool(orderFree.text.strip())
+        # signature
+        signature = application.find("signature")
+        signatures = []
+        if signature is not None:
+            sigs = signature.findall("./entry")
+            if sigs is not None:
+                for entry in sigs:
+                    objSignature = {}
+                    objSignature['name'] = entry.attrib['name']
+                    comment = entry.find("comment")
+                    if comment is not None:
+                        objSignature['comment'] = comment.text.strip()
+                    scope = entry.find("scope")
+                    if scope is not None:
+                        objSignature['scope'] = scope.text.strip()
+                    orderFree = entry.find("order-free")
+                    if orderFree is not None:
+                        objSignature['order_free'] = self.toBool(orderFree.text.strip())
 
-                if entry.find("and-condition") is not None:
-                    andConditions = entry.findall("and-condition/entry")
-                    if andConditions is not None:
-                        objAndConditions = []
-                        for andCondition in andConditions:
-                            objAndCondition = {}
-                            objAndCondition['name'] = andCondition.attrib['name']
-                            if andCondition.find('or-condition') is not None:
-                                orConditions = andCondition.findall("or-condition/entry")
-                                if orConditions is not None:
-                                    objOrConditions = []
-                                    for orCondition in orConditions:
-                                        objOrCondition = {}
-                                        objOrCondition['name'] = orCondition.attrib['name']
-                                        objOrCondition['operator'] = {}
-                                        # Pattern Matching
-                                        patternMatch = orCondition.find("operator/pattern-match")
-                                        if patternMatch is not None:
-                                            objOrCondition['operator']['pattern_match'] = {}
-                                            context = patternMatch.find("context")
-                                            if context is not None:
-                                                objOrCondition['operator']['pattern_match']['context'] = context.text.strip()
-                                            pattern = patternMatch.find("pattern")
-                                            if pattern is not None:
-                                                objOrCondition['operator']['pattern_match']['pattern'] = pattern.text.strip()
+                    if entry.find("and-condition") is not None:
+                        andConditions = entry.findall("and-condition/entry")
+                        if andConditions is not None:
+                            objAndConditions = []
+                            for andCondition in andConditions:
+                                objAndCondition = {}
+                                objAndCondition['name'] = andCondition.attrib['name']
+                                if andCondition.find('or-condition') is not None:
+                                    orConditions = andCondition.findall("or-condition/entry")
+                                    if orConditions is not None:
+                                        objOrConditions = []
+                                        for orCondition in orConditions:
+                                            objOrCondition = {}
+                                            objOrCondition['name'] = orCondition.attrib['name']
+                                            objOrCondition['operator'] = {}
+                                            # Pattern Matching
+                                            patternMatch = orCondition.find("operator/pattern-match")
+                                            if patternMatch is not None:
+                                                objOrCondition['operator']['pattern_match'] = {}
+                                                context = patternMatch.find("context")
+                                                if context is not None:
+                                                    objOrCondition['operator']['pattern_match']['context'] = context.text.strip()
+                                                pattern = patternMatch.find("pattern")
+                                                if pattern is not None:
+                                                    objOrCondition['operator']['pattern_match']['pattern'] = pattern.text.strip()
 
-                                            if patternMatch.find("qualifier") is not None:
-                                                qualifiers = patternMatch.findall("qualifier/entry")
-                                                if qualifiers is not None:
-                                                    objQualifiers = []
-                                                    for qualifier in qualifiers:
-                                                        objQualifier = {}
-                                                        objQualifier['name'] = qualifier.attrib['name']
-                                                        objQualifier['value'] = qualifier.find('value').text.strip()
-                                                        objQualifiers.append(objQualifier)
-                                                    objOrCondition['operator']['pattern_match']['qualifier'] = objQualifiers
+                                                if patternMatch.find("qualifier") is not None:
+                                                    qualifiers = patternMatch.findall("qualifier/entry")
+                                                    if qualifiers is not None:
+                                                        objQualifiers = []
+                                                        for qualifier in qualifiers:
+                                                            objQualifier = {}
+                                                            objQualifier['name'] = qualifier.attrib['name']
+                                                            objQualifier['value'] = qualifier.find('value').text.strip()
+                                                            objQualifiers.append(objQualifier)
+                                                        objOrCondition['operator']['pattern_match']['qualifier'] = objQualifiers
 
-                                        # Greater Than
-                                        greaterThan = orCondition.find("operator/greater-than")
-                                        if greaterThan is not None:
-                                            objOrCondition['operator']['greater_than'] = {}
-                                            context = greaterThan.find("context")
-                                            if context is not None:
-                                                objOrCondition['operator']['greater_than']['context'] = context.text.strip()
-                                            value = greaterThan.find("value")
-                                            if value is not None:
-                                                objOrCondition['operator']['greater_than']['value'] = int(value.text.strip())
+                                            # Greater Than
+                                            greaterThan = orCondition.find("operator/greater-than")
+                                            if greaterThan is not None:
+                                                objOrCondition['operator']['greater_than'] = {}
+                                                context = greaterThan.find("context")
+                                                if context is not None:
+                                                    objOrCondition['operator']['greater_than']['context'] = context.text.strip()
+                                                value = greaterThan.find("value")
+                                                if value is not None:
+                                                    objOrCondition['operator']['greater_than']['value'] = int(value.text.strip())
 
-                                            if greaterThan.find("qualifier") is not None:
-                                                qualifiers = greaterThan.findall("qualifier/entry")
-                                                if qualifiers is not None:
-                                                    objQualifiers = []
-                                                    for qualifier in qualifiers:
-                                                        objQualifier = {}
-                                                        objQualifier['name'] = qualifier.attrib['name']
-                                                        objQualifier['value'] = qualifier.find('value').text.strip()
-                                                        objQualifiers.append(objQualifier)
-                                                    objOrCondition['operator']['greater_than']['qualifier'] = objQualifiers
-                                        # Less than
-                                        lessThan = orCondition.find("operator/less-than")
-                                        if lessThan is not None:
-                                            objOrCondition['operator']['less_than'] = {}
-                                            context = lessThan.find("context")
-                                            if context is not None:
-                                                objOrCondition['operator']['less_than']['context'] = context.text.strip()
-                                            value = lessThan.find("value")
-                                            if value is not None:
-                                                objOrCondition['operator']['less_than']['value'] = int(value.text.strip())
+                                                if greaterThan.find("qualifier") is not None:
+                                                    qualifiers = greaterThan.findall("qualifier/entry")
+                                                    if qualifiers is not None:
+                                                        objQualifiers = []
+                                                        for qualifier in qualifiers:
+                                                            objQualifier = {}
+                                                            objQualifier['name'] = qualifier.attrib['name']
+                                                            objQualifier['value'] = qualifier.find('value').text.strip()
+                                                            objQualifiers.append(objQualifier)
+                                                        objOrCondition['operator']['greater_than']['qualifier'] = objQualifiers
+                                            # Less than
+                                            lessThan = orCondition.find("operator/less-than")
+                                            if lessThan is not None:
+                                                objOrCondition['operator']['less_than'] = {}
+                                                context = lessThan.find("context")
+                                                if context is not None:
+                                                    objOrCondition['operator']['less_than']['context'] = context.text.strip()
+                                                value = lessThan.find("value")
+                                                if value is not None:
+                                                    objOrCondition['operator']['less_than']['value'] = int(value.text.strip())
 
-                                            if lessThan.find("qualifier") is not None:
-                                                qualifiers = lessThan.findall("qualifier/entry")
-                                                if qualifiers is not None:
-                                                    objQualifiers = []
-                                                    for qualifier in qualifiers:
-                                                        objQualifier = {}
-                                                        objQualifier['name'] = qualifier.attrib['name']
-                                                        objQualifier['value'] = qualifier.find('value').text.strip()
-                                                        objQualifiers.append(objQualifier)
-                                                    objOrCondition['operator']['less_than']['qualifier'] = objQualifiers
+                                                if lessThan.find("qualifier") is not None:
+                                                    qualifiers = lessThan.findall("qualifier/entry")
+                                                    if qualifiers is not None:
+                                                        objQualifiers = []
+                                                        for qualifier in qualifiers:
+                                                            objQualifier = {}
+                                                            objQualifier['name'] = qualifier.attrib['name']
+                                                            objQualifier['value'] = qualifier.find('value').text.strip()
+                                                            objQualifiers.append(objQualifier)
+                                                        objOrCondition['operator']['less_than']['qualifier'] = objQualifiers
 
-                                        # Equal to
-                                        equalTo = orCondition.find("operator/equal-to")
-                                        if equalTo is not None:
-                                            objOrCondition['operator']['equal_to'] = {}
-                                            context = equalTo.find("context")
-                                            if context is not None:
-                                                objOrCondition['operator']['equal_to']['context'] = context.text.strip()
-                                            value = equalTo.find("value")
-                                            if value is not None:
-                                                objOrCondition['operator']['equal_to']['value'] = int(value.text.strip())
-                                            position = equalTo.find("position")
-                                            if position is not None:
-                                                objOrCondition['operator']['equal_to']['position'] = position.text.strip()
-                                            mask = equalTo.find("mask")
-                                            if mask is not None:
-                                                objOrCondition['operator']['equal_to']['mask'] = mask.text.strip()
+                                            # Equal to
+                                            equalTo = orCondition.find("operator/equal-to")
+                                            if equalTo is not None:
+                                                objOrCondition['operator']['equal_to'] = {}
+                                                context = equalTo.find("context")
+                                                if context is not None:
+                                                    objOrCondition['operator']['equal_to']['context'] = context.text.strip()
+                                                value = equalTo.find("value")
+                                                if value is not None:
+                                                    objOrCondition['operator']['equal_to']['value'] = int(value.text.strip())
+                                                position = equalTo.find("position")
+                                                if position is not None:
+                                                    objOrCondition['operator']['equal_to']['position'] = position.text.strip()
+                                                mask = equalTo.find("mask")
+                                                if mask is not None:
+                                                    objOrCondition['operator']['equal_to']['mask'] = mask.text.strip()
 
-                                            if equalTo.find("qualifier") is not None:
-                                                qualifiers = equalTo.findall("qualifier/entry")
-                                                if qualifiers is not None:
-                                                    objQualifiers = []
-                                                    for qualifier in qualifiers:
-                                                        objQualifier = {}
-                                                        objQualifier['name'] = qualifier.attrib['name']
-                                                        objQualifier['value'] = qualifier.find('value').text.strip()
-                                                        objQualifiers.append(objQualifier)
-                                                    objOrCondition['operator']['equal_to']['qualifier'] = objQualifiers
+                                                if equalTo.find("qualifier") is not None:
+                                                    qualifiers = equalTo.findall("qualifier/entry")
+                                                    if qualifiers is not None:
+                                                        objQualifiers = []
+                                                        for qualifier in qualifiers:
+                                                            objQualifier = {}
+                                                            objQualifier['name'] = qualifier.attrib['name']
+                                                            objQualifier['value'] = qualifier.find('value').text.strip()
+                                                            objQualifiers.append(objQualifier)
+                                                        objOrCondition['operator']['equal_to']['qualifier'] = objQualifiers
 
-                                        objOrConditions.append(objOrCondition)
-                                objAndCondition["or_condition"] = objOrConditions
-                            objAndConditions.append(objAndCondition)
+                                            objOrConditions.append(objOrCondition)
+                                    objAndCondition["or_condition"] = objOrConditions
+                                objAndConditions.append(objAndCondition)
 
-                        objSignature['and_condition'] = objAndConditions
-                # Add Signature to the Array
-                signatures.append(objSignature)
+                            objSignature['and_condition'] = objAndConditions
+                    # Add Signature to the Array
+                    signatures.append(objSignature)
 
-        obj['signature'] = signatures
+            obj['signature'] = signatures
 
-    return obj
+        return obj
 
-def toBool(value):
-    if value.lower() == 'yes':
-        return True
-    elif value.lower() == 'no':
-        return False
-    else:
-        raise ValueError(f"Cannot convert {value} to boolean")
+    def toBool(self, value):
+        if value.lower() == 'yes':
+            return True
+        elif value.lower() == 'no':
+            return False
+        else:
+            raise ValueError(f"Cannot convert {value} to boolean")

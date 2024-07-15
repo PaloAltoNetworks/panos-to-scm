@@ -40,6 +40,9 @@ class SecurityRule(PanApiHandler):
 class NatRule(PanApiHandler):
     _endpoint = "/config/network/v1/nat-rules?"
 
+class Zones(PanApiHandler):
+    _endpoint = "/config/network/v1/zones?"
+
 class Address(PanApiHandler):
     "An address object"
     _endpoint = "/sse/config/v1/addresses?"

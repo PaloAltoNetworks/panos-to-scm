@@ -77,4 +77,4 @@ palo_api_token: xxxxxxxxxxxxxxxxxxxxxx
 - **Application Filters**
 - **Application Groups**
 - **Security Rules**
-- **NAT Rules**: New feature, migration only supports initial commit. There is no ability to "move" rules currently
+- **NAT Rules**: New feature, migration only supports initial migration - delta changes are not properly ordered.

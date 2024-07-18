@@ -818,7 +818,7 @@ class XMLParser:
                 'from': [members.text for members in from_zone] if from_zone is not None else 'any',
                 'source': [members.text for members in source] if source is not None else 'any',
                 'negate_source': True if (negate_source is not None and negate_source.text == 'yes') else False,
-                'source_user': [members.text for members in source_user] if source_user is not None else 'any',
+                'source_user': [members.text for members in source_user] if source_user else ['any'],
                 'source_hip': [member.text for member in entry.findall('source-hip/member')] or ['any'],
                 'to': [members.text for members in to_zone] if to_zone is not None else 'any',
                 'destination': [members.text for members in destination] if destination is not None else 'any',
@@ -839,7 +839,6 @@ class XMLParser:
                 logging.warning(f"Schedule detected, manually add {schedule.text} to rule '{name}'")            
 
             # Filter out None values from the address dictionary
-            # print(security_rule)
             filtered_security_rules = {k: v for k, v in security_rule.items() if v is not None}
             security_rules.append(filtered_security_rules)
 

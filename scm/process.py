@@ -127,9 +127,8 @@ class Processor:
         start_time_reordering = time.time()
 
         while not rules_in_correct_order:
-            endpoint = self.obj.SecurityRule.get_endpoint()
+            endpoint = obj_type.get_endpoint().replace('?','')
             all_current_rules = self.api_handler.get(obj_type.get_endpoint(), folder=folder_scope, limit=limit, position=position)
-            endpoint = endpoint.replace('?','')
             current_rules = [rule for rule in all_current_rules if rule['folder'] == folder_scope]
             current_order = [rule['name'] for rule in current_rules if rule['name'] != 'default']
 
@@ -183,6 +182,9 @@ class SCMObjectManager:
             self.post_new_entries(new_entries, folder_scope, device_group_name)
 
         self.update_existing_entries(updated_entries, folder_scope, device_group_name)
+
+        self.process_rules(self.sec_obj, parsed_data, folder_scope, rule_type='security', limit=limit)
+        self.process_rules(self.nat_obj, parsed_data, folder_scope, rule_type='nat', limit=limit)
 
     def get_current_objects(self, obj_types, max_workers=6, limit='10000', **kwargs):
         logging.info(f"Running with {max_workers} workers.")
@@ -319,7 +321,7 @@ class SCMObjectManager:
             else:
                 logging.info(f"No new {entry_type_name}s entries to create from parsed data")
 
-    def process_rules(self, rule_obj, parsed_data, xml_file_path, limit='10000', rule_type='security'):
+    def process_rules(self, rule_obj, parsed_data, folder_scope, rule_type='security', limit='10000'):
         if rule_type == 'security':
             pre_rules = parsed_data['security_pre_rules']
             post_rules = parsed_data['security_post_rules']
@@ -343,7 +345,7 @@ class SCMObjectManager:
             if rules:
                 self.configure.post_entries(self.folder_scope, rules, rule_obj, extra_query_params=extra_query_param)
             else:
-                message = f"No new {rule_type_name} to create from XML: {xml_file_path}"
+                message = f"No new {rule_type_name} to create from XML: {folder_scope}"
                 logging.info(message)
 
         self.reorder_rules_if_needed(rule_obj, pre_rules, current_rules_pre, position='pre')

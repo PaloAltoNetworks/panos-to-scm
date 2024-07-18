@@ -336,6 +336,11 @@ class SCMObjectManager:
         rules_to_create_pre = [rule for rule in pre_rules if rule['name'] not in current_rule_names_pre]
         rules_to_create_post = [rule for rule in post_rules if rule['name'] not in current_rule_names_post]
 
+        if rule_type == 'nat':
+            self.configure.set_max_workers(1)
+        else:
+            self.configure.set_max_workers(6)
+
         rule_types = [
             (rules_to_create_pre, "position=pre", f"pre-{rule_type}-rules"),
             (rules_to_create_post, "position=post", f"post-{rule_type}-rules")

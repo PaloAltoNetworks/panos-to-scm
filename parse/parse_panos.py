@@ -73,6 +73,8 @@ class XMLParser:
             'ApplicationFilter': self.application_filter_entries(),
             'ApplicationGroup': self.application_group_entries(),
             'Schedule': self.schedule_entries(),
+            'app_override_pre_rules': self.app_override_pre_rules_entries(),
+            'app_override_post_rules': self.app_override_post_rules_entries(),
             'security_pre_rules': self.security_pre_rules_entries(),
             'security_post_rules': self.security_post_rules_entries(),
             'nat_pre_rules': self.nat_pre_rules_entries(),
@@ -781,6 +783,106 @@ class XMLParser:
 
         return application_groups
 
+    def app_override_pre_rules_entries(self):
+        base_xpath_dict = {
+            'local': './devices/entry/vsys/entry/rulebase/application-override/rules/entry',
+            'shared': './shared/pre-rulebase/application-override/rules/entry',
+            'device-group': f'./devices/entry/device-group/entry[@name="{self.device_group_name}"]/pre-rulebase/application-override/rules/entry'
+        }
+
+        base_xpath = self._get_base_xpath(base_xpath_dict)
+
+        app_override_rules = []
+
+        for entry in self.root.findall(base_xpath):
+            application = entry.find('application')
+            description = entry.find('description')
+            destination = entry.findall('destination/member')
+            disabled = entry.find('disabled')
+            from_zone = entry.findall('from/member')
+            name = entry.get('name')
+            negate_destination = entry.find('negate-destination')
+            negate_source = entry.find('negate-source')
+            port = entry.find('port')
+            protocol = entry.find('protocol')
+            source = entry.findall('source/member')
+            tag = entry.findall('tag/member')
+            to_zone = entry.findall('to/member')
+
+            app_override_rule = {
+                'name': name,
+                'description': description.text if description is not None else None,
+                'tag': [members.text for members in tag] if tag is not None else None,
+                'from': [members.text for members in from_zone] if from_zone is not None else 'any',
+                'source': [members.text for members in source] if source is not None else 'any',
+                'negate_source': True if (negate_source is not None and negate_source.text == 'yes') else False,
+                'to': [members.text for members in to_zone] if to_zone is not None else 'any',
+                'destination': [members.text for members in destination] if destination is not None else 'any',
+                'negate_destination': True if (negate_destination is not None and negate_destination.text == 'yes') else False,
+                'port': port.text,
+                'protocol': protocol.text,
+                'application': application.text,
+                'disabled': True if (disabled is not None and disabled.text == 'yes') else False,
+            }
+            # Filter out None values from the address dictionary
+            filtered_app_override_rule = {k: v for k, v in app_override_rule.items() if v is not None}
+            app_override_rules.append(filtered_app_override_rule)
+        
+        logging.debug(f'FOUND THESE PRE RULES: {app_override_rules}')
+        return app_override_rules
+    
+    def app_override_post_rules_entries(self):
+        base_xpath_dict = {
+            'local': './devices/entry/vsys/entry/rulebase/application-override/rules/entry',
+            'shared': './shared/post-rulebase/application-override/rules/entry',
+            'device-group': f'./devices/entry/device-group/entry[@name="{self.device_group_name}"]/post-rulebase/application-override/rules/entry'
+        }
+
+        base_xpath = self._get_base_xpath(base_xpath_dict)
+
+        # Return an empty list if the configuration is local or if no base_xpath is found
+        if self.config_type == 'local' or not base_xpath:
+            return []
+
+        app_override_rules = []
+
+        for entry in self.root.findall(base_xpath):
+            application = entry.find('application')
+            description = entry.find('description')
+            destination = entry.findall('destination/member')
+            disabled = entry.find('disabled')
+            from_zone = entry.findall('from/member')
+            name = entry.get('name')
+            negate_destination = entry.find('negate-destination')
+            negate_source = entry.find('negate-source')
+            port = entry.find('port')
+            protocol = entry.find('protocol')
+            source = entry.findall('source/member')
+            tag = entry.findall('tag/member')
+            to_zone = entry.findall('to/member')
+
+            app_override_rule = {
+                'name': name,
+                'description': description.text if description is not None else None,
+                'tag': [members.text for members in tag] if tag is not None else None,
+                'from': [members.text for members in from_zone] if from_zone is not None else 'any',
+                'source': [members.text for members in source] if source is not None else 'any',
+                'negate_source': True if (negate_source is not None and negate_source.text == 'yes') else False,
+                'to': [members.text for members in to_zone] if to_zone is not None else 'any',
+                'destination': [members.text for members in destination] if destination is not None else 'any',
+                'negate_destination': True if (negate_destination is not None and negate_destination.text == 'yes') else False,
+                'port': port.text,
+                'protocol': protocol.text,
+                'application': application.text,
+                'disabled': True if (disabled is not None and disabled.text == 'yes') else False,
+            }
+            # Filter out None values from the address dictionary
+            filtered_app_override_rule = {k: v for k, v in app_override_rule.items() if v is not None}
+            app_override_rules.append(filtered_app_override_rule)
+        
+        logging.debug(f'FOUND THESE POST RULES: {app_override_rules}')
+        return app_override_rules
+    
     def security_pre_rules_entries(self):
         base_xpath_dict = {
             'local': './devices/entry/vsys/entry/rulebase/security/rules/entry',

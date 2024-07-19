@@ -20,6 +20,7 @@ class AppConfig:
         ]
         self.sec_obj = obj.SecurityRule
         self.nat_obj = obj.NatRule
+        self.app_override_obj = obj.ApplicationOverrideRule
 
 class ConfigurationManager:
     def __init__(self):

@@ -63,6 +63,7 @@ class XMLParser:
             'VulnerabilityProtectionProfile': self.vulnerability_profiles_entries(),
             'AntiSpywareProfile': self.spyware_profiles_entries(),
             'WildFireAntivirusProfile': self.antivirus_profiles_entries(),
+            'FileBlockingProfile': self.fileblocking_profiles_entries(),
             'ProfileGroup': self.profile_group_entries(),
             'Tag': self.tag_entries(),
             'Address': self.address_entries(),
@@ -431,6 +432,53 @@ class XMLParser:
             antivirus_profiles.append(antivirus_profile)
 
         return antivirus_profiles
+    
+    def fileblocking_profiles_entries(self):
+        base_xpath_dict = {
+            'local': './devices/entry/vsys/entry/profiles/file-blocking/entry',
+            'shared': './shared/profiles/file-blocking/entry',
+            'device-group': './devices/entry/device-group/entry[@name="{device_group_name}"]/profiles/file-blocking/entry'
+        }
+
+        base_xpath = self._get_base_xpath(base_xpath_dict)
+        fileblocking_profiles = []
+
+        for profile_entry in self.root.findall(base_xpath):
+            profile_name = profile_entry.get('name')
+            description_element = profile_entry.find('description')
+            description = description_element.text if description_element is not None else None
+
+            rules = []
+            for rule_entry in profile_entry.findall('./rules/entry'):
+                rule_name = rule_entry.get('name')
+                application_elements = rule_entry.find('application')
+                applications = [member.text for member in application_elements.findall('member')]
+                file_type_elements = rule_entry.find('file-type')
+                file_types = [member.text for member in file_type_elements.findall('member')]
+                direction = rule_entry.find('direction').text
+                action = rule_entry.find('action').text
+
+                rule = {
+                    'name': rule_name,
+                    'application': applications,
+                    'file_type': file_types,
+                    'direction': direction,
+                    'action': action
+                }
+
+                rules.append(rule)
+            
+            fileblocking_profile = {
+                'name': profile_name,
+                'rules': rules
+            }
+            if description:
+                fileblocking_profile['description'] = description
+            
+            fileblocking_profiles.append(fileblocking_profile)
+            # print(fileblocking_profiles)
+        
+        return fileblocking_profiles
     
     def profile_group_entries(self):
         base_xpath_dict = {

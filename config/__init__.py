@@ -13,7 +13,7 @@ class AppConfig:
             obj.Tag, obj.Application, obj.Address, obj.AddressGroup, obj.Service, 
             obj.ServiceGroup, obj.ExternalDynamicList, obj.URLCategory, 
             obj.URLAccessProfile, obj.VulnerabilityProtectionProfile, 
-            obj.AntiSpywareProfile, 
+            obj.AntiSpywareProfile, obj.FileBlockingProfile,
             # obj.WildFireAntivirusProfile,
             obj.ProfileGroup, obj.ApplicationFilter, obj.ApplicationGroup,
             obj.Schedule

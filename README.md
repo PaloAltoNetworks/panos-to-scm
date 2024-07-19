@@ -78,3 +78,4 @@ palo_api_token: xxxxxxxxxxxxxxxxxxxxxx
 - **Application Groups**
 - **Security Rules**
 - **NAT Rules**: New feature, migration only supports initial migration - delta changes are not properly ordered.
+- **Application Override Rules**

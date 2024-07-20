@@ -183,9 +183,6 @@ class SCMObjectManager:
 
         self.update_existing_entries(updated_entries, folder_scope, device_group_name)
 
-        self.process_rules(self.sec_obj, parsed_data, folder_scope, rule_type='security', limit=limit)
-        self.process_rules(self.nat_obj, parsed_data, folder_scope, rule_type='nat', limit=limit)
-
     def get_current_objects(self, obj_types, max_workers=6, limit='10000', **kwargs):
         logging.info(f"Running with {max_workers} workers.")
         results = {}

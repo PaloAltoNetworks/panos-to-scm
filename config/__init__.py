@@ -6,7 +6,7 @@ import scm.obj as obj
 
 class AppConfig:
     def __init__(self):
-        self.max_workers = 3
+        self.max_workers = 4
         self.xml_file_path = 'running_config.xml'
         self.limit = '10000'
         self.obj_types = [

@@ -51,23 +51,19 @@ def initialize_api_session():
 def setup_scm_object_manager(session, configure, obj_types, sec_obj, nat_obj, folder_scope):
     return SCMObjectManager(session, folder_scope, configure, obj, obj_types, sec_obj, nat_obj)
 
-def run_selected_objects(parsed_data, scm_obj_manager, folder_scope, device_group_name, obj_types):
-    for obj_type in obj_types:
-        obj_type_name = obj_type.__name__
-        
-        logger.info(f"Looking for key '{obj_type_name}' in parsed_data.")
-        
-        if obj_type_name not in parsed_data:
-            logger.warning(f"Key '{obj_type_name}' not found in parsed_data. Available keys: {list(parsed_data.keys())}")
-            continue
-
-        logger.info(f"Processing object type: {obj_type_name}")
-        scm_obj_manager.process_objects({obj_type_name: parsed_data[obj_type_name]}, folder_scope, device_group_name)
+def run_selected_objects(parsed_data, scm_obj_manager, folder_scope, device_group_name, run_objects_list):
+    selected_obj_types = [obj for obj in config.obj_types if obj.__name__ in run_objects_list]
+    
+    if not selected_obj_types:
+        logger.warning(f"No valid objects found to run for {run_objects_list}")
+        return
+    
+    scm_obj_manager.process_objects(parsed_data, folder_scope, device_group_name, max_workers=6)
 
 def main(config, run_objects=None, run_security=False, run_app_override=False, run_nat=False, run_all=False):
     try:
         start_time = time.time()
-        logging.info(f"Script started at {time.ctime(start_time)}")
+        logger.info(f"Script started at {time.ctime(start_time)}")
 
         api_session = PanApiHandler(initialize_api_session())
         configure = Processor(api_session, config.max_workers, obj)
@@ -80,10 +76,18 @@ def main(config, run_objects=None, run_security=False, run_app_override=False, r
         
         parse.config_type = config_type
         parse.device_group_name = device_group_name
-        parsed_data = parse.parse_all()
+
+        if run_objects:
+            run_objects_list = run_objects.split(',')
+            logger.info(f'Running specific objects: {run_objects_list}')
+            parsed_data = parse.parse_specific_types(run_objects_list)
+        else:
+            parsed_data = parse.parse_all()
+
         logger.debug(f"Parsed data keys: {list(parsed_data.keys())}")
 
-        scm_obj_manager = setup_scm_object_manager(api_session, configure, config.obj_types, config.sec_obj, config.nat_obj, folder_scope)
+        selected_obj_types = [obj for obj in config.obj_types if obj.__name__ in run_objects_list] if run_objects else config.obj_types
+        scm_obj_manager = setup_scm_object_manager(api_session, configure, selected_obj_types, config.sec_obj, config.nat_obj, folder_scope)
 
         if run_all:
             scm_obj_manager.process_objects(parsed_data, folder_scope, device_group_name, max_workers=6)
@@ -92,15 +96,7 @@ def main(config, run_objects=None, run_security=False, run_app_override=False, r
             configure.set_max_workers(1)  # Set max workers to 1 for NAT rules
             scm_obj_manager.process_rules(config.nat_obj, parsed_data, xml_file_path, limit=config.limit, rule_type='nat')
         elif run_objects:
-            run_objects_list = run_objects.split(',')
-            logger.info(f'Running specific objects: {run_objects_list}')
-            for obj_name in run_objects_list:
-                objects_to_run = [obj for obj in config.obj_types if obj.__name__ == obj_name]
-                if not objects_to_run:
-                    logger.error(f"No valid object found with the name {obj_name}")
-                    continue
-                filtered_parsed_data = {k: v for k, v in parsed_data.items() if k == obj_name}
-                run_selected_objects(filtered_parsed_data, scm_obj_manager, folder_scope, device_group_name, objects_to_run)
+            run_selected_objects(parsed_data, scm_obj_manager, folder_scope, device_group_name, run_objects_list)
         else:
             if run_security:
                 scm_obj_manager.process_rules(config.sec_obj, parsed_data, xml_file_path, limit=config.limit, rule_type='security')
@@ -114,7 +110,7 @@ def main(config, run_objects=None, run_security=False, run_app_override=False, r
 
         end_time = time.time()
         logger.info(f"Script execution time: {end_time - start_time:.2f} seconds")
-        logging.info(f"Script ended at {time.ctime(end_time)}")
+        logger.info(f"Script ended at {time.ctime(end_time)}")
 
     except Exception as e:
         logger.error(f"An error occurred: {e}")

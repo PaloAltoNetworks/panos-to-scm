@@ -131,13 +131,13 @@ if __name__ == "__main__":
     obj_type_names = [obj.__name__ for obj in config.obj_types]
     obj_type_help = "Specify the objects to run, separated by commas. Supported objects: " + ", ".join(obj_type_names)
     
-    parser = argparse.ArgumentParser(description="Run specific objects in the project")
+    parser = argparse.ArgumentParser(description="Run specific objects or policies in the project")
     parser.add_argument('-o', '--objects', type=str, help=obj_type_help)
-    parser.add_argument('-s', '--security-rules', action='store_true', help="Run security rules processing")
-    parser.add_argument('-p', '--app-override-rules', action='store_true', help="Run application override rules processing")
-    parser.add_argument('-d', '--decryption-rules', action='store_true', help="Run decryption rules processing")
-    parser.add_argument('-n', '--nat-rules', action='store_true', help="Run NAT rules processing")
-    parser.add_argument('-a', '--all', action='store_true', help="Run all: objects, security rules, and NAT rules")
+    parser.add_argument('-s', '--security-rules', action='store_true', help="Run security rules")
+    parser.add_argument('-p', '--app-override-rules', action='store_true', help="Run application override rules")
+    parser.add_argument('-d', '--decryption-rules', action='store_true', help="Run decryption rules")
+    parser.add_argument('-n', '--nat-rules', action='store_true', help="Run NAT rules")
+    parser.add_argument('-a', '--all', action='store_true', help="Run all: Object types as well as Security, App Override, Decryption and NAT policies")
     args = parser.parse_args()
     
     main(config, run_objects=args.objects, run_security=args.security_rules, run_app_override=args.app_override_rules, run_decrypt_rules=args.decryption_rules, run_nat=args.nat_rules, run_all=args.all)

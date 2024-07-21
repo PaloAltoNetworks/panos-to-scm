@@ -52,12 +52,15 @@ palo_api_token: xxxxxxxxxxxxxxxxxxxxxx
 - If PANOS config has A,B,C,D - it will  update and PUT D into it..
 
 ### Command Line Options:
-- Run Specific Objects: python main.py -o Tag,Address,AddressGroup
-  - use main.py -h for list of all avilable object types. Put them in comma separated
-- Run Security Rules Only: python main.py -s
-- Run NAT Rules Only: python main.py -n
-- Run All Objects, Security Rules, and NAT Rules: python main.py -a
-- Default Behavior: Running python main.py without any options will run all objects only.
+- Check the "HELP" feature using `python main.py -h`
+- Run Specific Objects: `python main.py -o Tag,Address,AddressGroup`
+  - You can run one, or multiple, comma seperated like above example
+- Run Security Rules Only: `python main.py -s`
+- Run App Override Rules Only: `python main.py -p`
+- Run Decryption Rules Only: `python main.py -d`
+- Run NAT Rules Only: `python main.py -n`
+- Run All Objects, Security, App Override, Decryption and NAT Rules: `python main.py -a`
+- Default Behavior: Running `python main.py` without any options will run all objects only(no policies).
 
 ### Currently Supported Features:
 

@@ -325,6 +325,9 @@ class SCMObjectManager:
         elif rule_type == 'application-override':
             pre_rules = parsed_data['app_override_pre_rules']
             post_rules = parsed_data['app_override_post_rules']
+        elif rule_type == 'decryption':
+            pre_rules = parsed_data['decryption_pre_rules']
+            post_rules = parsed_data['decryption_post_rules']
         else:
             pre_rules = parsed_data['nat_pre_rules']
             post_rules = parsed_data['nat_post_rules']

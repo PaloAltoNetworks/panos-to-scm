@@ -60,7 +60,7 @@ def run_selected_objects(parsed_data, scm_obj_manager, folder_scope, device_grou
     
     scm_obj_manager.process_objects(parsed_data, folder_scope, device_group_name, max_workers=6)
 
-def main(config, run_objects=None, run_security=False, run_app_override=False, run_nat=False, run_all=False):
+def main(config, run_objects=None, run_security=False, run_app_override=False, run_decrypt_rules=False, run_nat=False, run_all=False):
     try:
         start_time = time.time()
         logger.info(f"Script started at {time.ctime(start_time)}")
@@ -93,6 +93,7 @@ def main(config, run_objects=None, run_security=False, run_app_override=False, r
             scm_obj_manager.process_objects(parsed_data, folder_scope, device_group_name, max_workers=6)
             scm_obj_manager.process_rules(config.sec_obj, parsed_data, xml_file_path, limit=config.limit, rule_type='security')
             scm_obj_manager.process_rules(config.app_override_obj, parsed_data, xml_file_path, limit=config.limit, rule_type='application-override')
+            scm_obj_manager.process_rules(config.decryption_rule_obj, parsed_data, xml_file_path, limit=config.limit, rule_type='decryption')
             configure.set_max_workers(1)  # Set max workers to 1 for NAT rules
             scm_obj_manager.process_rules(config.nat_obj, parsed_data, xml_file_path, limit=config.limit, rule_type='nat')
         elif run_objects:
@@ -102,6 +103,8 @@ def main(config, run_objects=None, run_security=False, run_app_override=False, r
                 scm_obj_manager.process_rules(config.sec_obj, parsed_data, xml_file_path, limit=config.limit, rule_type='security')
             elif run_app_override:
                 scm_obj_manager.process_rules(config.app_override_obj, parsed_data, xml_file_path, limit=config.limit, rule_type='application-override')
+            elif run_decrypt_rules:
+                scm_obj_manager.process_rules(config.decryption_rule_obj, parsed_data, xml_file_path, limit=config.limit, rule_type='decryption')
             elif run_nat:
                 configure.set_max_workers(1)  # Set max workers to 1 for NAT rules
                 scm_obj_manager.process_rules(config.nat_obj, parsed_data, xml_file_path, limit=config.limit, rule_type='nat')
@@ -132,8 +135,9 @@ if __name__ == "__main__":
     parser.add_argument('-o', '--objects', type=str, help=obj_type_help)
     parser.add_argument('-s', '--security-rules', action='store_true', help="Run security rules processing")
     parser.add_argument('-p', '--app-override-rules', action='store_true', help="Run application override rules processing")
+    parser.add_argument('-d', '--decryption-rules', action='store_true', help="Run decryption rules processing")
     parser.add_argument('-n', '--nat-rules', action='store_true', help="Run NAT rules processing")
     parser.add_argument('-a', '--all', action='store_true', help="Run all: objects, security rules, and NAT rules")
     args = parser.parse_args()
     
-    main(config, run_objects=args.objects, run_security=args.security_rules, run_app_override=args.app_override_rules, run_nat=args.nat_rules, run_all=args.all)
+    main(config, run_objects=args.objects, run_security=args.security_rules, run_app_override=args.app_override_rules, run_decrypt_rules=args.decryption_rules, run_nat=args.nat_rules, run_all=args.all)

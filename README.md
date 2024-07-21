@@ -66,7 +66,7 @@ palo_api_token: xxxxxxxxxxxxxxxxxxxxxx
 - **URL Filter Profiles**
 - **Vulnerability Profiles**
 - **Anti-Spyware Profiles**
-- **Wildfire/Anti-Virus Profiles**: This has been default disabled in /config/ as this feature isn't fully API supported
+- **Wildfire/Anti-Virus Profiles**: 
 - **File Blocking Profiles**
 - **Decryption Profiles**
 - **Profile Groups**
@@ -75,9 +75,10 @@ palo_api_token: xxxxxxxxxxxxxxxxxxxxxx
 - **Address Groups**
 - **Service Objects**
 - **Service Groups**
-- **Applications**: This is new feature, please check your import for verification. Thank you Albert Estevez Polo for the collaboration
+- **Applications**: 
 - **Application Filters**
 - **Application Groups**
 - **Security Rules**
-- **NAT Rules**: New feature, migration only supports initial migration - delta changes are not properly ordered.
+- **NAT Rules**
 - **Application Override Rules**
+- **Decryption Policy Rules**

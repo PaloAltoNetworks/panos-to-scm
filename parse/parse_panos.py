@@ -88,7 +88,9 @@ class XMLParser:
             'nat_post_rules': self._parse_entries(self._nat_post_rules_entries),
             'Application': self._parse_entries(self._application_entries),
             'Zones': self._parse_entries(self._zones),
-            'DecryptionProfile': self._parse_entries(self._decryption_profiles_entries)
+            'DecryptionProfile': self._parse_entries(self._decryption_profiles_entries),
+            'decryption_pre_rules': self._parse_entries(self._decryption_pre_rules_entries),
+            'decryption_post_rules': self._parse_entries(self._decryption_post_rules_entries)
         }
 
     def parse_specific_types(self, object_types):
@@ -118,7 +120,9 @@ class XMLParser:
             'nat_post_rules': self._nat_post_rules_entries,
             'Application': self._application_entries,
             'Zones': self._zones,
-            'DecryptionProfile': self._decryption_profiles_entries
+            'DecryptionProfile': self._decryption_profiles_entries,
+            'decryption_pre_rules': self._decryption_pre_rules_entries,
+            'decryption_post_rules': self._decryption_post_rules_entries
         }
 
         for obj_type in object_types:
@@ -874,7 +878,7 @@ class XMLParser:
             filtered_app_override_rule = {k: v for k, v in app_override_rule.items() if v is not None}
             app_override_rules.append(filtered_app_override_rule)
 
-        logging.debug(f'FOUND THESE PRE RULES: {app_override_rules}')
+        logging.debug(f'FOUND THESE APP PRE RULES: {app_override_rules}')
         return app_override_rules
 
     def _app_override_post_rules_entries(self):
@@ -920,7 +924,7 @@ class XMLParser:
             filtered_app_override_rule = {k: v for k, v in app_override_rule.items() if v is not None}
             app_override_rules.append(filtered_app_override_rule)
 
-        logging.debug(f'FOUND THESE POST RULES: {app_override_rules}')
+        logging.debug(f'FOUND THESE APP POST RULES: {app_override_rules}')
         return app_override_rules
 
     def _security_pre_rules_entries(self):
@@ -979,7 +983,7 @@ class XMLParser:
             filtered_security_rules = {k: v for k, v in security_rule.items() if v is not None}
             security_rules.append(filtered_security_rules)
 
-        logging.debug(f'FOUND THESE PRE RULES: {security_rules}')
+        logging.debug(f'FOUND THESE SECURITY PRE RULES: {security_rules}')
         return security_rules
 
     def _security_post_rules_entries(self):
@@ -1040,8 +1044,144 @@ class XMLParser:
             filtered_security_rules = {k: v for k, v in security_rule.items() if v is not None}
             security_rules.append(filtered_security_rules)
 
-        logging.debug(f'FOUND THESE POST RULES: {security_rules}')
+        logging.debug(f'FOUND THESE SECURITY POST RULES: {security_rules}')
         return security_rules
+
+    def _decryption_pre_rules_entries(self):
+        base_xpath_dict = {
+            'local': './devices/entry/vsys/entry/rulebase/decryption/rules/entry',
+            'shared': './shared/pre-rulebase/decryption/rules/entry',
+            'device-group': f'./devices/entry/device-group/entry[@name="{self.device_group_name}"]/pre-rulebase/decryption/rules/entry'
+        }
+        base_xpath = self._get_base_xpath(base_xpath_dict)
+        decryption_rules = []
+        for entry in self.root.findall(base_xpath):
+            action = entry.find('action')
+            category = entry.findall('category/member')
+            description = entry.find('description')
+            destination = entry.findall('destination/member')
+            disabled = entry.find('disabled')
+            from_zone = entry.findall('from/member')
+            name = entry.get('name')
+            negate_destination = entry.find('negate-destination')
+            negate_source = entry.find('negate-source')
+            service = entry.findall('service/member')
+            source = entry.findall('source/member')
+            source_user = entry.findall('source-user/member')
+            tag = entry.findall('tag/member')
+            to_zone = entry.findall('to/member')
+            type_element = entry.find('type')
+            type_value = None
+            if type_element is not None:
+                type_children = list(type_element)
+                if type_children:
+                    type_key = type_children[0].tag
+                    type_value = type_key.replace('-', '_')
+            log_success = entry.find('log-success')
+            log_fail = entry.find('log-fail')
+            profile = entry.find('profile')
+            profile_value = profile.text if profile is not None else 'best-practice'
+            if profile_value == 'default':
+                profile_value = 'best-practice'
+
+            decryption_rule = {
+                'name': name,
+                'description': description.text if description is not None else None,
+                'tag': [members.text for members in tag] if tag is not None else None,
+                'from': [members.text for members in from_zone] if from_zone is not None else 'any',
+                'source': [members.text for members in source] if source is not None else 'any',
+                'negate_source': True if (negate_source is not None and negate_source.text == 'yes') else False,
+                'source_user': [members.text for members in source_user] if source_user else ['any'],
+                'source_hip': [member.text for member in entry.findall('source-hip/member')] or ['any'],
+                'to': [members.text for members in to_zone] if to_zone is not None else 'any',
+                'destination': [members.text for members in destination] if destination is not None else 'any',
+                'negate_destination': True if (negate_destination is not None and negate_destination.text == 'yes') else False,
+                'destination_hip': [member.text for member in entry.findall('destination-hip/member')] or ['any'],
+                'service': [members.text for members in service] if service is not None else ['any'],
+                'category': [members.text for members in category] if category is not None else ['any'],
+                'disabled': True if (disabled is not None and disabled.text == 'yes') else False,
+                'log_setting': "Cortex Data Lake",
+                'action': action.text if action is not None else None,
+                'type': {type_value: {}} if type_value else None,
+                'log_success': True if (log_success is not None and log_success.text == 'yes') else False,
+                'log_fail': False if (log_fail is not None and log_fail.text == 'no') else True,
+                'profile': profile_value
+            }
+
+            filtered_decryption_rules = {k: v for k, v in decryption_rule.items() if v is not None}
+            decryption_rules.append(filtered_decryption_rules)
+
+        logging.debug(f'FOUND THESE DECRYPT PRE RULES: {decryption_rules}')
+        return decryption_rules
+
+    def _decryption_post_rules_entries(self):
+        base_xpath_dict = {
+            'local': './devices/entry/vsys/entry/rulebase/decryption/rules/entry',
+            'shared': './shared/post-rulebase/decryption/rules/entry',
+            'device-group': f'./devices/entry/device-group/entry[@name="{self.device_group_name}"]/post-rulebase/decryption/rules/entry'
+        }
+        base_xpath = self._get_base_xpath(base_xpath_dict)
+        if self.config_type == 'local' or not base_xpath:
+            return []
+        decryption_rules = []
+        for entry in self.root.findall(base_xpath):
+            action = entry.find('action')
+            category = entry.findall('category/member')
+            description = entry.find('description')
+            destination = entry.findall('destination/member')
+            disabled = entry.find('disabled')
+            from_zone = entry.findall('from/member')
+            name = entry.get('name')
+            negate_destination = entry.find('negate-destination')
+            negate_source = entry.find('negate-source')
+            service = entry.findall('service/member')
+            source = entry.findall('source/member')
+            source_user = entry.findall('source-user/member')
+            tag = entry.findall('tag/member')
+            to_zone = entry.findall('to/member')
+            type_element = entry.find('type')
+            type_value = None
+            if type_element is not None:
+                type_children = list(type_element)
+                if type_children:
+                    type_key = type_children[0].tag
+                    type_value = type_key.replace('-', '_')
+            log_success = entry.find('log-success')
+            log_fail = entry.find('log-fail')
+            profile = entry.find('profile')
+            profile_value = profile.text if profile is not None else 'best-practice'
+            if profile_value == 'default':
+                profile_value = 'best-practice'
+
+            decryption_rule = {
+                'name': name,
+                'description': description.text if description is not None else None,
+                'tag': [members.text for members in tag] if tag is not None else None,
+                'from': [members.text for members in from_zone] if from_zone is not None else 'any',
+                'source': [members.text for members in source] if source is not None else 'any',
+                'negate_source': True if (negate_source is not None and negate_source.text == 'yes') else False,
+                'source_user': [members.text for members in source_user] if source_user else ['any'],
+                'source_hip': [member.text for member in entry.findall('source-hip/member')] or ['any'],
+                'to': [members.text for members in to_zone] if to_zone is not None else 'any',
+                'destination': [members.text for members in destination] if destination is not None else 'any',
+                'negate_destination': True if (negate_destination is not None and negate_destination.text == 'yes') else False,
+                'destination_hip': [member.text for member in entry.findall('destination-hip/member')] or ['any'],
+                'service': [members.text for members in service] if service is not None else ['any'],
+                'category': [members.text for members in category] if category is not None else ['any'],
+                'disabled': True if (disabled is not None and disabled.text == 'yes') else False,
+                'log_setting': "Cortex Data Lake",
+                'action': action.text if action is not None else None,
+                'type': {type_value: {}} if type_value else None,
+                'log_success': True if (log_success is not None and log_success.text == 'yes') else False,
+                'log_fail': False if (log_fail is not None and log_fail.text == 'no') else True,
+                'profile': profile_value
+            }
+
+            filtered_decryption_rules = {k: v for k, v in decryption_rule.items() if v is not None}
+            decryption_rules.append(filtered_decryption_rules)
+
+        logging.debug(f'FOUND THESE DECRYPT POST RULES: {decryption_rules}')
+        return decryption_rules
 
     def _nat_pre_rules_entries(self):
         base_xpath_dict = {

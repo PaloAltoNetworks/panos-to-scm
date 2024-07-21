@@ -68,6 +68,7 @@ palo_api_token: xxxxxxxxxxxxxxxxxxxxxx
 - **Anti-Spyware Profiles**
 - **Wildfire/Anti-Virus Profiles**: This has been default disabled in /config/ as this feature isn't fully API supported
 - **File Blocking Profiles**
+- **Decryption Profiles**
 - **Profile Groups**
 - **Tags**
 - **Address Objects**

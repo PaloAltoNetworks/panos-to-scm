@@ -87,7 +87,8 @@ class XMLParser:
             'nat_pre_rules': self._parse_entries(self._nat_pre_rules_entries),
             'nat_post_rules': self._parse_entries(self._nat_post_rules_entries),
             'Application': self._parse_entries(self._application_entries),
-            'Zones': self._parse_entries(self._zones)
+            'Zones': self._parse_entries(self._zones),
+            'DecryptionProfile': self._parse_entries(self._decryption_profiles_entries)
         }
 
     def parse_specific_types(self, object_types):
@@ -116,7 +117,8 @@ class XMLParser:
             'nat_pre_rules': self._nat_pre_rules_entries,
             'nat_post_rules': self._nat_post_rules_entries,
             'Application': self._application_entries,
-            'Zones': self._zones
+            'Zones': self._zones,
+            'DecryptionProfile': self._decryption_profiles_entries
         }
 
         for obj_type in object_types:
@@ -306,6 +308,115 @@ class XMLParser:
             spyware_profiles.append(spyware_profile)
 
         return spyware_profiles
+
+    def _decryption_profiles_entries(self):
+        base_xpath_dict = {
+            'local': './devices/entry/vsys/entry/profiles/decryption/entry',
+            'shared': './shared/profiles/decryption/entry',
+            'device-group': './devices/entry/device-group/entry[@name="{self.device_group_name}"]/profiles/decryption/entry'
+        }
+        base_xpath = self._get_base_xpath(base_xpath_dict)
+        decryption_profiles = []
+
+        for profile_entry in self.root.findall(base_xpath):
+            profile_name = profile_entry.get('name')
+
+            ssl_forward_proxy = {
+                "auto_include_altname": False,
+                "block_client_cert": False,
+                "block_expired_certificate": False,
+                "block_timeout_cert": False,
+                "block_tls13_downgrade_no_resource": False,
+                "block_unknown_cert": False,
+                "block_unsupported_cipher": False,
+                "block_unsupported_version": False,
+                "block_untrusted_issuer": False,
+                "restrict_cert_exts": False,
+                "strip_alpn": False
+            }
+            
+            ssl_inbound_proxy = {
+                "block_if_hsm_unavailable": False,
+                "block_if_no_resource": False,
+                "block_unsupported_cipher": False,
+                "block_unsupported_version": False
+            }
+            
+            ssl_no_proxy = {
+                "block_expired_certificate": False,
+                "block_untrusted_issuer": False
+            }
+            
+            ssl_protocol_settings = {
+                "auth_algo_md5": False,
+                "auth_algo_sha1": True,
+                "auth_algo_sha256": True,
+                "auth_algo_sha384": True,
+                "enc_algo_3des": True,
+                "enc_algo_aes_128_cbc": True,
+                "enc_algo_aes_128_gcm": True,
+                "enc_algo_aes_256_cbc": True,
+                "enc_algo_aes_256_gcm": True,
+                "enc_algo_chacha20_poly1305": True,
+                "enc_algo_rc4": True,
+                "keyxchg_algo_dhe": True,
+                "keyxchg_algo_ecdhe": True,
+                "keyxchg_algo_rsa": True,
+                "max_version": "tls1-2",
+                "min_version": "tls1-0"
+            }
+
+            # Parse ssl-forward-proxy
+            ssl_forward_proxy_element = profile_entry.find('ssl-forward-proxy')
+            if ssl_forward_proxy_element is not None:
+                for key in ssl_forward_proxy.keys():
+                    element = ssl_forward_proxy_element.find(key.replace("_", "-"))
+                    if element is not None:
+                        ssl_forward_proxy[key] = element.text.lower() == 'yes'
+
+            # Parse ssl-inbound-proxy
+            ssl_inbound_proxy_element = profile_entry.find('ssl-inbound-proxy')
+            if ssl_inbound_proxy_element is not None:
+                for key in ssl_inbound_proxy.keys():
+                    element = ssl_inbound_proxy_element.find(key.replace("_", "-"))
+                    if element is not None:
+                        ssl_inbound_proxy[key] = element.text.lower() == 'yes'
+
+            # Parse ssl-no-proxy
+            ssl_no_proxy_element = profile_entry.find('ssl-no-proxy')
+            if ssl_no_proxy_element is not None:
+                for key in ssl_no_proxy.keys():
+                    element = ssl_no_proxy_element.find(key.replace("_", "-"))
+                    if element is not None:
+                        ssl_no_proxy[key] = element.text.lower() == 'yes'
+
+            # Parse ssl-protocol-settings
+            ssl_protocol_settings_element = profile_entry.find('ssl-protocol-settings')
+            if ssl_protocol_settings_element is not None:
+                for key in ssl_protocol_settings.keys():
+                    element = ssl_protocol_settings_element.find(key.replace("_", "-"))
+                    if element is not None:
+                        ssl_protocol_settings[key] = element.text.lower() == 'yes'
+                
+                max_version_element = ssl_protocol_settings_element.find('max-version')
+                if max_version_element is not None:
+                    ssl_protocol_settings['max_version'] = max_version_element.text
+                
+                min_version_element = ssl_protocol_settings_element.find('min-version')
+                if min_version_element is not None:
+                    ssl_protocol_settings['min_version'] = min_version_element.text
+
+            decryption_profile = {
+                "name": profile_name,
+                "ssl_forward_proxy": ssl_forward_proxy,
+                "ssl_inbound_proxy": ssl_inbound_proxy,
+                "ssl_no_proxy": ssl_no_proxy,
+                "ssl_protocol_settings": ssl_protocol_settings
+            }
+
+            decryption_profiles.append(decryption_profile)
+
+        return decryption_profiles
 
     def _antivirus_profiles_entries(self):
         base_xpath_dict = {

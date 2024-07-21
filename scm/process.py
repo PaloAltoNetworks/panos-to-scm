@@ -284,7 +284,7 @@ class SCMObjectManager:
                 if entries:
                     entry_class = getattr(self.obj, entry_type_name)
                     for entry in entries:
-                        object_id = entry.get('id')
+                        object_id = entry.pop('id', None)
                         if not object_id:
                             self.logger.warning(f"Warning: Object ID not found for {entry['name']} in {entry_type_name}. Skipping update.")
                             continue
@@ -292,7 +292,7 @@ class SCMObjectManager:
                         self.logger.info(f"Updating {entry_type_name}: {entry['name']} at endpoint: {endpoint}")
                         result = self.api_handler.put(endpoint, entry)
                         if result['status'] == 'success':
-                            self.logger.info(f"Updated {entry_type_name}: {entry['name']}")
+                            self.logger.info(f"Updated {entry_type_name}: {entry['name']} with values: {entry}")
                         else:
                             self.logger.error(f"Failed to update {entry_type_name}: {entry['name']}, Reason: {result['message']}")
                 else:

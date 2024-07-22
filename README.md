@@ -46,7 +46,7 @@ palo_api_token: xxxxxxxxxxxxxxxxxxxxxx
 - If you want to use an offline XML file, then default XML file name must be in project directory and named `running_config.xml`
 - Otherwise, it'll get the full running config from your PANOS device(controlled at $HOME/.panapi/config.yml)
 - Script will Parse all XML and create dictionary of object types and security rules
-- Script will GET all objects and rules from SCM and then compare your XML and post new entries.
+- Script will GET all objects and rules from SCM and then compare your XML and post new OR **Update XML Entries into Existing SCM Object**
 - Also handles rule ordering if something gets out of order(order determined by XML) which occurs in parallel processing
 - Script currently will update objects if value has changed - example, address-group1 has members A,B,C in SCM
 - If PANOS config has A,B,C,D - it will update and PUT D into it..

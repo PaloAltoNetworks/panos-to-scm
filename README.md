@@ -70,7 +70,7 @@ palo_api_token: xxxxxxxxxxxxxxxxxxxxxx
 - **URL Filter Profiles**
 - **Vulnerability Profiles**
 - **Anti-Spyware Profiles**
-- **Wildfire/Anti-Virus Profiles**: 
+- **Wildfire/Anti-Virus Profiles**: Disabled - complete manually before running script
 - **File Blocking Profiles**
 - **Decryption Profiles**
 - **Profile Groups**

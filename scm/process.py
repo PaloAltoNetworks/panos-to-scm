@@ -222,10 +222,58 @@ class SCMObjectManager:
                         parsed_obj_with_id = {**parsed_obj, 'id': existing_obj.get('id')}
                         if self.needs_update(parsed_obj_with_id, existing_obj):
                             self.logger.info(f"Update needed for {entry_type_name}: {name}")
-                            updated_entries.setdefault(entry_type_name, []).append(parsed_obj_with_id)
+                            # Prompt user to resolve conflict
+                            resolved_entry = self.resolve_conflicts(parsed_obj_with_id, existing_obj)
+                            updated_entries.setdefault(entry_type_name, []).append(resolved_entry)
             else:
                 self.logger.warning(f"Warning: Key '{parsed_data_key}' not found in parsed_data.")
         return new_entries, updated_entries
+
+    def resolve_conflicts(self, new_object, current_object):
+        def normalize(obj):
+            for key, value in obj.items():
+                if isinstance(value, list):
+                    obj[key] = sorted([str(item) for item in value])
+                else:
+                    obj[key] = str(value)
+            return obj
+
+        normalized_new_object = normalize(new_object.copy())
+        normalized_current_object = normalize(current_object.copy())
+
+        print(f"Conflict detected for object '{normalized_new_object['name']}'")
+        print(f"SCM Object: {normalized_current_object}")
+        print(f"New Object: {normalized_new_object}")
+        print("Choose an action: [M]erge, [R]eplace, [C]reate new with appended name")
+        choice = input("Enter your choice (M/R/C): ").strip().upper()
+
+        if choice == 'M':
+            return self.merge_entries(new_object, current_object)
+        elif choice == 'R':
+            return new_object
+        elif choice == 'C':
+            new_name = f"{new_object['name']}_new"
+            new_object['name'] = new_name
+            return new_object
+        else:
+            print("Invalid choice. Skipping conflict resolution.")
+            return current_object
+
+    def merge_entries(self, new_object, current_object):
+        merged_object = current_object.copy()
+        for key, value in new_object.items():
+            if isinstance(value, list):
+                if key in merged_object:
+                    existing_list = merged_object[key]
+                    for item in value:
+                        if item not in existing_list:
+                            existing_list.append(item)
+                    merged_object[key] = existing_list
+                else:
+                    merged_object[key] = value
+            else:
+                merged_object[key] = value
+        return merged_object
 
     @staticmethod
     def needs_update(new_object, current_object):
@@ -251,7 +299,9 @@ class SCMObjectManager:
             elif isinstance(value1, list) and isinstance(value2, list):
                 if len(value1) != len(value2):
                     return True
-                for item1, item2 in zip(value1, value2):
+                normalized_value1 = sorted([str(item) for item in value1])
+                normalized_value2 = sorted([str(item) for item in value2])
+                for item1, item2 in zip(normalized_value1, normalized_value2):
                     if isinstance(item1, dict) and isinstance(item2, dict):
                         if deep_compare(item1, item2):
                             return True
@@ -259,7 +309,7 @@ class SCMObjectManager:
                         return True
                 return False
             else:
-                if value1 != value2:
+                if str(value1) != str(value2):
                     return True
                 return False
 
@@ -359,6 +409,6 @@ class SCMObjectManager:
         self.reorder_rules_if_needed(rule_obj, pre_rules, current_rules_pre, position='pre')
         self.reorder_rules_if_needed(rule_obj, post_rules, current_rules_post, position='post')
 
-    def reorder_rules_if_needed(self, rule_obj, rule_entries, current_rules, position):
-        if not RuleProcessor.is_rule_order_correct(current_rules, rule_entries):
-            self.configure.check_and_reorder_rules(rule_obj, self.folder_scope, rule_entries, limit='10000', position=position)
+    def reorder_rules_if_needed(self, rule_obj, desired_rules, current_rules, position):
+        if not RuleProcessor.is_rule_order_correct(current_rules, desired_rules):
+            self.configure.check_and_reorder_rules(rule_obj, self.folder_scope, desired_rules, limit='10000', position=position)

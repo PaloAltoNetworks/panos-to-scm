@@ -88,7 +88,7 @@ palo_api_token: xxxxxxxxxxxxxxxxxxxxxx
 - **Application Override Rules**
 - **Decryption Policy Rules**
 
-### Currently Supported PAN-OS Migration Features:
+### Currently Supported Cisco Firepower Migration Features:
 - **Address Objects**
 - **Address Groups**
 - **Service Objects**

@@ -3,6 +3,7 @@ from logging.handlers import TimedRotatingFileHandler
 import time
 from config import ConfigurationManager
 from parse.parse_panos import XMLParser
+from parse.parse_cisco import CiscoParser  # Cisco Parser added
 from api import PanApiSession
 from scm import PanApiHandler
 from scm.process import Processor, SCMObjectManager
@@ -24,24 +25,29 @@ def setup_logging():
     console_handler.setFormatter(logging.Formatter('%(asctime)s - %(levelname)s - %(message)s'))
     logger.addHandler(console_handler)
 
-def get_xml_file_path(config, logger):
-    user_choice = input("Do you want to retrieve new config from Palo Alto NGFW? (yes/no): ").strip().lower()
-    xml_file_path = "running_config.xml"
+def get_file_path_and_type(config, logger):
+    config_choice = input("Do you want to parse Cisco or PANOS configuration? (cisco/panos): ").strip().lower()
+    if config_choice == 'panos':
+        user_choice = input("Do you want to retrieve new config from Palo Alto NGFW? (yes/no): ").strip().lower()
+        file_path = "running_config.xml"
 
-    if user_choice == 'yes':
-        palo_token_manager = PaloToken()
-        token = palo_token_manager.retrieve_token()
-        palo_config_manager = PaloConfigManager(token, palo_token_manager.ngfw_url)
-        running_config = palo_config_manager.get_running_config()
+        if user_choice == 'yes':
+            palo_token_manager = PaloToken()
+            token = palo_token_manager.retrieve_token()
+            palo_config_manager = PaloConfigManager(token, palo_token_manager.ngfw_url)
+            running_config = palo_config_manager.get_running_config()
 
-        with open(xml_file_path, "w") as file:
-            file.write(running_config)
-        logger.info("New running configuration retrieved and saved.")
+            with open(file_path, "w") as file:
+                file.write(running_config)
+            logger.info("New running configuration retrieved and saved.")
+        else:
+            file_path = config.xml_file_path
+            logger.info(f"Using local XML file: {file_path}")
     else:
-        xml_file_path = config.xml_file_path
-        logger.info(f"Using local XML file: {xml_file_path}")
+        file_path = config.cisco_file_path
+        logger.info(f"Using Cisco configuration file: {file_path}")
 
-    return xml_file_path
+    return file_path, config_choice
 
 def initialize_api_session():
     session = PanApiSession()
@@ -68,21 +74,29 @@ def main(config, run_objects=None, run_security=False, run_app_override=False, r
         api_session = PanApiHandler(initialize_api_session())
         configure = Processor(api_session, config.max_workers, obj)
 
-        xml_file_path = get_xml_file_path(config, logger)
+        file_path, config_type = get_file_path_and_type(config, logger)
 
-        parse = XMLParser(xml_file_path, None)
-        folder_scope, config_type, device_group_name = parse.parse_config_and_set_scope(xml_file_path)
-        logger.info(f'Current SCM Folder: {folder_scope}, PANOS: {config_type}, Device Group: {device_group_name}')
-        
-        parse.config_type = config_type
-        parse.device_group_name = device_group_name
+        if config_type == 'panos':
+            parser = XMLParser(file_path, None)
+            folder_scope, config_type, device_group_name = parser.parse_config_and_set_scope(file_path)
+            logger.info(f'Current SCM Folder: {folder_scope}, PANOS: {config_type}, Device Group: {device_group_name}')
+            parser.config_type = config_type
+            parser.device_group_name = device_group_name
 
-        if run_objects:
-            run_objects_list = run_objects.split(',')
-            logger.info(f'Running specific objects: {run_objects_list}')
-            parsed_data = parse.parse_specific_types(run_objects_list)
+            if run_objects:
+                run_objects_list = run_objects.split(',')
+                logger.info(f'Running specific objects: {run_objects_list}')
+                parsed_data = parser.parse_specific_types(run_objects_list)
+            else:
+                run_objects_list = []  # Initialize as empty list
+                parsed_data = parser.parse_all()
         else:
-            parsed_data = parse.parse_all()
+            parser = CiscoParser(file_path)
+            parser.parse()
+            parsed_data = parser.get_parsed_data()
+            folder_scope = input("What folder is Cisco config going into? Case Sensitive: ").strip()
+            device_group_name = None  # No device group in Cisco firewall
+            run_objects_list = run_objects.split(',') if run_objects else []  # Initialize run_objects_list for Cisco
 
         logger.debug(f"Parsed data keys: {list(parsed_data.keys())}")
 
@@ -91,23 +105,23 @@ def main(config, run_objects=None, run_security=False, run_app_override=False, r
 
         if run_all:
             scm_obj_manager.process_objects(parsed_data, folder_scope, device_group_name, max_workers=6)
-            scm_obj_manager.process_rules(config.sec_obj, parsed_data, xml_file_path, limit=config.limit, rule_type='security')
-            scm_obj_manager.process_rules(config.app_override_obj, parsed_data, xml_file_path, limit=config.limit, rule_type='application-override')
-            scm_obj_manager.process_rules(config.decryption_rule_obj, parsed_data, xml_file_path, limit=config.limit, rule_type='decryption')
+            scm_obj_manager.process_rules(config.sec_obj, parsed_data, file_path, limit=config.limit, rule_type='security')
+            scm_obj_manager.process_rules(config.app_override_obj, parsed_data, file_path, limit=config.limit, rule_type='application-override')
+            scm_obj_manager.process_rules(config.decryption_rule_obj, parsed_data, file_path, limit=config.limit, rule_type='decryption')
             configure.set_max_workers(1)  # Set max workers to 1 for NAT rules
-            scm_obj_manager.process_rules(config.nat_obj, parsed_data, xml_file_path, limit=config.limit, rule_type='nat')
+            scm_obj_manager.process_rules(config.nat_obj, parsed_data, file_path, limit=config.limit, rule_type='nat')
         elif run_objects:
             run_selected_objects(parsed_data, scm_obj_manager, folder_scope, device_group_name, run_objects_list)
         else:
             if run_security:
-                scm_obj_manager.process_rules(config.sec_obj, parsed_data, xml_file_path, limit=config.limit, rule_type='security')
+                scm_obj_manager.process_rules(config.sec_obj, parsed_data, file_path, limit=config.limit, rule_type='security')
             elif run_app_override:
-                scm_obj_manager.process_rules(config.app_override_obj, parsed_data, xml_file_path, limit=config.limit, rule_type='application-override')
+                scm_obj_manager.process_rules(config.app_override_obj, parsed_data, file_path, limit=config.limit, rule_type='application-override')
             elif run_decrypt_rules:
-                scm_obj_manager.process_rules(config.decryption_rule_obj, parsed_data, xml_file_path, limit=config.limit, rule_type='decryption')
+                scm_obj_manager.process_rules(config.decryption_rule_obj, parsed_data, file_path, limit=config.limit, rule_type='decryption')
             elif run_nat:
                 configure.set_max_workers(1)  # Set max workers to 1 for NAT rules
-                scm_obj_manager.process_rules(config.nat_obj, parsed_data, xml_file_path, limit=config.limit, rule_type='nat')
+                scm_obj_manager.process_rules(config.nat_obj, parsed_data, file_path, limit=config.limit, rule_type='nat')
             else:
                 scm_obj_manager.process_objects(parsed_data, folder_scope, device_group_name, max_workers=6)
 

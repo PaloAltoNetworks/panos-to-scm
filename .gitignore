@@ -166,6 +166,10 @@ running_config.xml
 config*.xml
 pa-440.xml
 
+#cisco config files
+cisco.txt
+cisco_config.txt
+
 
 # PyCharm
 #  JetBrains specific template is maintained in a separate JetBrains.gitignore that can

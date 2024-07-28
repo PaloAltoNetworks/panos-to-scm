@@ -20,13 +20,13 @@ class Processor:
 
         start_time = time.time()
         initial_entry_count = len(entries)
-        endpoint_message = obj_type.get_endpoint().replace('/sse/config/v1/','').replace('?','')
+        endpoint_message = obj_type.get_endpoint().replace('/sse/config/v1/', '').replace('?', '')
 
         self.logger.info(f"Processing {len(entries)} {endpoint_message} entries in parallel.")
 
         endpoint = obj_type.get_endpoint() + extra_query_params
         results = self.create_objects(folder_scope, 0, endpoint, entries)
-        
+
         created_count, exists_count, error_count, error_objects = self.analyze_results(results)
 
         self.log_summary(initial_entry_count, created_count, exists_count, error_count, error_objects, endpoint_message, start_time)
@@ -127,9 +127,9 @@ class Processor:
         start_time_reordering = time.time()
 
         while not rules_in_correct_order:
-            endpoint = obj_type.get_endpoint().replace('?','')
+            endpoint = obj_type.get_endpoint().replace('?', '')
             all_current_rules = self.api_handler.get(obj_type.get_endpoint(), folder=folder_scope, limit=limit, position=position)
-            current_rules = [rule for rule in all_current_rules if rule['folder'] == folder_scope]
+            current_rules = [rule for rule in all_current_rules if 'name' in rule and 'folder' in rule]
             current_order = [rule['name'] for rule in current_rules if rule['name'] != 'default']
 
             desired_order = [rule['name'] for rule in original_rules if rule['name'] != 'default']
@@ -221,7 +221,7 @@ class SCMObjectManager:
                         existing_obj = next(o for o in current_set if o['name'] == name)
                         parsed_obj_with_id = {**parsed_obj, 'id': existing_obj.get('id')}
                         if self.needs_update(parsed_obj_with_id, existing_obj):
-                            self.logger.info(f"Update needed for {entry_type_name}: {name}")
+                            self.logger.debug(f"Update needed for {entry_type_name}: {name}")
                             # Prompt user to resolve conflict
                             resolved_entry = self.resolve_conflicts(parsed_obj_with_id, existing_obj)
                             updated_entries.setdefault(entry_type_name, []).append(resolved_entry)
@@ -230,16 +230,17 @@ class SCMObjectManager:
         return new_entries, updated_entries
 
     def resolve_conflicts(self, new_object, current_object):
-        def normalize(obj):
-            for key, value in obj.items():
-                if isinstance(value, list):
-                    obj[key] = sorted([str(item) for item in value])
-                else:
-                    obj[key] = str(value)
-            return obj
+        normalized_new_object = self.normalize(new_object.copy())
+        normalized_current_object = self.normalize(current_object.copy())
 
-        normalized_new_object = normalize(new_object.copy())
-        normalized_current_object = normalize(current_object.copy())
+        # Log the objects for debugging
+        self.logger.debug(f"Normalized New Object: {normalized_new_object}")
+        self.logger.debug(f"Normalized Current Object: {normalized_current_object}")
+
+        # If the normalized objects are identical, skip conflict resolution
+        if normalized_new_object == normalized_current_object:
+            self.logger.debug(f"Objects '{new_object['name']}' are identical. Skipping conflict resolution.")
+            return current_object
 
         print(f"Conflict detected for object '{normalized_new_object['name']}'")
         print(f"SCM Object: {normalized_current_object}")
@@ -314,11 +315,12 @@ class SCMObjectManager:
                 return False
 
         for key, value in new_object.items():
-            if key == 'name':
+            if key == 'name' or key == 'type':
                 continue
             existing_value = current_object.get(key)
             try:
                 if deep_compare(value, existing_value):
+                    logging.debug(f"Update needed for '{new_object['name']}' because of key '{key}'")
                     return True
             except Exception as e:
                 logging.error(f"Error comparing '{key}' in '{new_object['name']}': {e}")
@@ -338,15 +340,28 @@ class SCMObjectManager:
                         if not object_id:
                             self.logger.warning(f"Warning: Object ID not found for {entry['name']} in {entry_type_name}. Skipping update.")
                             continue
-                        endpoint = entry_class.get_endpoint().replace('?','') + '/' + object_id
-                        self.logger.info(f"Updating {entry_type_name}: {entry['name']} at endpoint: {endpoint}")
-                        result = self.api_handler.put(endpoint, entry)
-                        if result['status'] == 'success':
-                            self.logger.info(f"Updated {entry_type_name}: {entry['name']} with values: {entry}")
+                        endpoint = entry_class.get_endpoint().replace('?', '') + '/' + object_id
+
+                        # Fetch the current object from SCM
+                        current_object = next((obj for obj in self.api_handler.get(entry_class.get_endpoint(), folder=folder_scope) if obj['name'] == entry['name']), None)
+                        if current_object:
+                            normalized_entry = self.normalize(entry)
+                            normalized_current_object = self.normalize(current_object)
+
+                            # Only update if there are differences
+                            if normalized_entry != normalized_current_object:
+                                self.logger.info(f"Updating {entry_type_name}: {entry['name']} at endpoint: {endpoint}")
+                                result = self.api_handler.put(endpoint, entry)
+                                if result['status'] == 'success':
+                                    self.logger.info(f"Updated {entry_type_name}: {entry['name']} with values: {entry}")
+                                else:
+                                    self.logger.error(f"Failed to update {entry_type_name}: {entry['name']}, Reason: {result['message']}")
+                            else:
+                                self.logger.info(f"No changes detected for {entry['name']}. Skipping update.")
                         else:
-                            self.logger.error(f"Failed to update {entry_type_name}: {entry['name']}, Reason: {result['message']}")
-                else:
-                    self.logger.info(f"No entries to update for {entry_type_name}.")
+                            self.logger.error(f"Current object '{entry['name']}' not found in SCM. Skipping update.")
+            else:
+                self.logger.info(f"No entries to update for {entry_type_name}.")
 
     def _generate_key_name(self, entry_type_name):
         return entry_type_name.replace(' ', '-')
@@ -412,3 +427,15 @@ class SCMObjectManager:
     def reorder_rules_if_needed(self, rule_obj, desired_rules, current_rules, position):
         if not RuleProcessor.is_rule_order_correct(current_rules, desired_rules):
             self.configure.check_and_reorder_rules(rule_obj, self.folder_scope, desired_rules, limit='10000', position=position)
+
+    @staticmethod
+    def normalize(obj):
+        irrelevant_keys = {'folder', 'type'}
+        for key in irrelevant_keys:
+            obj.pop(key, None)
+        for key, value in obj.items():
+            if isinstance(value, list):
+                obj[key] = sorted([str(item) for item in value])
+            else:
+                obj[key] = str(value)
+        return obj

@@ -49,17 +49,17 @@ class CiscoParser:
                     self.save_current_object(current_object, current_type, first_pass=True)
                 current_object = {"name": line.split()[-1], "type": "network-group", "members": []}
                 current_type = "AddressGroup"
+            elif line.startswith('object service'):
+                if current_object:
+                    self.save_current_object(current_object, current_type, first_pass=True)
+                current_object = {"name": line.split()[2], "type": "Service"}
+                current_type = "Service"
             elif line.startswith('object-group service'):
                 if current_object:
                     self.save_current_object(current_object, current_type, first_pass=True)
                 parts = line.split()
                 current_object = {"name": parts[-2], "type": "service-group", "protocol": parts[-1], "members": []}
                 current_type = "ServiceGroup"
-            elif line.startswith('object service'):
-                if current_object:
-                    self.save_current_object(current_object, current_type, first_pass=True)
-                current_object = {"name": line.split()[2], "type": "service"}
-                current_type = "Service"
             elif line.startswith('description'):
                 if current_object:
                     current_object["description"] = line.split(' ', 1)[1]
@@ -135,14 +135,13 @@ class CiscoParser:
                     self.logger.debug(f"Added group-object member {obj_name} to {current_object['name']}")
                     if current_type == "AddressGroup":
                         self.unresolved_groups.setdefault(current_object["name"], []).append(obj_name)
-            elif line.startswith('service-object'):
-                if current_object:
+            elif line.startswith('service tcp destination eq') or line.startswith('service udp destination eq'):
+                if current_object and current_object.get("type") == "Service":
                     parts = line.split()
-                    service_type = parts[1]
-                    if service_type in self.unsupported_services:
-                        self.data["Unsupported"].append({"name": current_object["name"], "service": service_type})
-                    else:
-                        current_object["members"].append(service_type)
+                    port = map_port(parts[-1])
+                    protocol = "tcp" if "tcp" in line else "udp"
+                    current_object["protocol"] = {protocol: {"port": port}}
+                    self.logger.debug(f"Parsed service: {current_object}")
 
         if current_object:
             self.save_current_object(current_object, current_type, first_pass=True)
@@ -167,7 +166,9 @@ class CiscoParser:
                 self.logger.debug(f"Saved AddressGroup for subsequent pass: {obj['name']} with members: {obj['static']}")
             self.data["AddressGroup"].append(obj)
         elif obj_type == "Service":
-            obj["name"] = self.sanitize_name(obj["name"])
+            protocol = list(obj["protocol"].keys())[0]
+            port = obj["protocol"][protocol]["port"]
+            obj["name"] = self.sanitize_name(f"{protocol.upper()}-{port}")
             self.data["Service"].append(obj)
         elif obj_type == "ServiceGroup":
             if len(obj["members"]) == 1:

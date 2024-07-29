@@ -2,6 +2,7 @@ def map_port(port):
     port_mapping = {
         'www': '80',
         'https': '443',
+        'ssl': '443',
         'ssh': '22',
         'snmp': '161',
         'snmptrap': '162',

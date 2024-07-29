@@ -18,42 +18,46 @@ class CiscoParser:
         self.services = set()   # To keep track of already known services
         self.single_service_groups = []  # To keep track of single-member service groups
         self.unsupported_services = {"icmp"}
+        self.unresolved_groups = {}  # To track unresolved groups and their members
 
     def parse(self):
         try:
             with open(self.file_path, 'r') as file:
                 lines = file.readlines()
-                self.parse_lines(lines)
+                self.parse_lines_first_pass(lines)
                 self.process_single_service_groups()
                 self.filter_unsupported_services()
+                self.resolve_groups()
         except Exception as e:
             self.logger.error(f"Error parsing Cisco file: {e}", exc_info=True)
 
-    def parse_lines(self, lines):
+    def parse_lines_first_pass(self, lines):
         current_object = None
         current_type = None
 
         for line in lines:
             line = line.strip()
+            self.logger.debug(f"Processing line: {line}")
+
             if line.startswith('object network'):
                 if current_object:
-                    self.save_current_object(current_object, current_type)
+                    self.save_current_object(current_object, current_type, first_pass=True)
                 current_object = {"name": line.split()[-1], "type": "network"}
                 current_type = "address"
             elif line.startswith('object-group network'):
                 if current_object:
-                    self.save_current_object(current_object, current_type)
+                    self.save_current_object(current_object, current_type, first_pass=True)
                 current_object = {"name": line.split()[-1], "type": "network-group", "members": []}
                 current_type = "AddressGroup"
             elif line.startswith('object-group service'):
                 if current_object:
-                    self.save_current_object(current_object, current_type)
+                    self.save_current_object(current_object, current_type, first_pass=True)
                 parts = line.split()
                 current_object = {"name": parts[-2], "type": "service-group", "protocol": parts[-1], "members": []}
                 current_type = "ServiceGroup"
             elif line.startswith('object service'):
                 if current_object:
-                    self.save_current_object(current_object, current_type)
+                    self.save_current_object(current_object, current_type, first_pass=True)
                 current_object = {"name": line.split()[2], "type": "service"}
                 current_type = "Service"
             elif line.startswith('description'):
@@ -71,6 +75,7 @@ class CiscoParser:
             elif line.startswith('host'):
                 if current_object:
                     current_object["ip_netmask"] = line.split()[-1]
+                    self.logger.debug(f"Parsed host: {current_object}")
             elif line.startswith('range'):
                 if current_object:
                     parts = line.split()
@@ -79,13 +84,24 @@ class CiscoParser:
                     current_object["ip_range"] = f"{range_start}-{range_end}"
             elif line.startswith('fqdn'):
                 if current_object:
-                    current_object["fqdn"] = line.split()[-1]
+                    parts = line.split()
+                    current_object["fqdn"] = parts[-1]  # This line ensures that "v4" or "v6" is ignored
+                    self.logger.debug(f"Parsed fqdn: {current_object}")
             elif line.startswith('network-object'):
                 if current_object:
                     parts = line.split()
                     if parts[1] == 'object':
                         obj_name = self.sanitize_name(parts[2])
                         current_object["members"].append(obj_name)
+                        self.logger.debug(f"Added network-object member {obj_name} to {current_object['name']}")
+                    elif parts[1] == 'host':
+                        ip_netmask = parts[2]
+                        name = self.sanitize_name(f"H-{ip_netmask}")
+                        if ip_netmask not in self.addresses:
+                            self.addresses.add(ip_netmask)
+                            self.data["Address"].append({"name": name, "ip_netmask": ip_netmask})
+                            self.logger.debug(f"Added new address: {name} with ip-netmask: {ip_netmask}")
+                        current_object["members"].append(name)
                     else:
                         if len(parts) == 3:
                             try:
@@ -102,6 +118,7 @@ class CiscoParser:
                         if ip_netmask not in self.addresses:
                             self.addresses.add(ip_netmask)
                             self.data["Address"].append({"name": name, "ip_netmask": ip_netmask})
+                            self.logger.debug(f"Added new address: {name} with ip-netmask: {ip_netmask}")
                         current_object["members"].append(name)
             elif line.startswith('port-object'):
                 if current_object:
@@ -113,7 +130,11 @@ class CiscoParser:
                     current_object["members"].append(port)
             elif line.startswith('group-object'):
                 if current_object:
-                    current_object["members"].append(self.sanitize_name(line.split()[-1]))
+                    obj_name = self.sanitize_name(line.split()[-1])
+                    current_object["members"].append(obj_name)
+                    self.logger.debug(f"Added group-object member {obj_name} to {current_object['name']}")
+                    if current_type == "AddressGroup":
+                        self.unresolved_groups.setdefault(current_object["name"], []).append(obj_name)
             elif line.startswith('service-object'):
                 if current_object:
                     parts = line.split()
@@ -124,9 +145,9 @@ class CiscoParser:
                         current_object["members"].append(service_type)
 
         if current_object:
-            self.save_current_object(current_object, current_type)
+            self.save_current_object(current_object, current_type, first_pass=True)
 
-    def save_current_object(self, obj, obj_type):
+    def save_current_object(self, obj, obj_type, first_pass):
         if obj_type == "address":
             if 'ip_netmask' in obj:
                 obj["name"] = self.sanitize_name(obj["name"])
@@ -140,6 +161,10 @@ class CiscoParser:
         elif obj_type == "AddressGroup":
             obj["name"] = self.sanitize_name(obj["name"])
             obj["static"] = obj.pop("members", [])
+            if first_pass:
+                self.logger.debug(f"Saved AddressGroup for first pass: {obj['name']} with members: {obj['static']}")
+            else:
+                self.logger.debug(f"Saved AddressGroup for subsequent pass: {obj['name']} with members: {obj['static']}")
             self.data["AddressGroup"].append(obj)
         elif obj_type == "Service":
             obj["name"] = self.sanitize_name(obj["name"])
@@ -149,7 +174,7 @@ class CiscoParser:
                 single_member = obj["members"][0]
                 # Check if the single member already exists as a service or a service group
                 if any(service["name"] == single_member for service in self.data["Service"]) or \
-                   any(group["name"] == single_member for group in self.data["ServiceGroup"]):
+                any(group["name"] == single_member for group in self.data["ServiceGroup"]):
                     obj["name"] = self.sanitize_name(obj["name"])
                     obj["members"] = obj.pop("members", [])
                     obj.pop("protocol", None)  # Remove the protocol key if it exists
@@ -171,6 +196,30 @@ class CiscoParser:
                 if "description" in obj:
                     obj.pop("description", None)  # Remove the description key if it exists
                 self.data["ServiceGroup"].append(obj)
+
+    def resolve_groups(self):
+        passes = 0
+        while self.unresolved_groups and passes < 10:
+            self.logger.debug(f"Resolving groups, pass {passes + 1}")
+            resolved_in_pass = []
+            for group, members in self.unresolved_groups.items():
+                if all(member in self.addresses for member in members):
+                    self.logger.debug(f"Resolving group {group} with members: {members}")
+                    self.data["AddressGroup"].append({"name": group, "static": members})
+                    resolved_in_pass.append(group)
+                    for member in members:
+                        self.addresses.add(member)
+
+            for group in resolved_in_pass:
+                self.unresolved_groups.pop(group)
+
+            passes += 1
+
+        if self.unresolved_groups:
+            unresolved_list = list(self.unresolved_groups.keys())
+            self.logger.debug(f"Unresolved groups after all passes: {unresolved_list}")
+            for group in unresolved_list:
+                self.logger.debug(f"Group '{group}' unresolved members: {self.unresolved_groups[group]}")
 
     def process_single_service_groups(self):
         for service in self.single_service_groups:

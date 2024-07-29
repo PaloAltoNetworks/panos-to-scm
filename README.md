@@ -1,6 +1,6 @@
 ## panos-to-scm
 - **Migrate Panorama Device Group OR Local PANOS Firewall config into Strata Cloud Manager**
-- **Migrate Cisco Firepower running config into Strata Cloud Manager - In progress**
+- **Migrate Cisco ASA/Firepower running config into Strata Cloud Manager - In progress**
 
 ## Understand the following items before running
 - **This script is as is, at your own risk, review license**
@@ -88,7 +88,7 @@ palo_api_token: xxxxxxxxxxxxxxxxxxxxxx
 - **Application Override Rules**
 - **Decryption Policy Rules**
 
-### Currently Supported Cisco Firepower Migration Features:
+### Currently Supported Cisco ASA/Firepower Migration Features:
 - **Address Objects**
 - **Address Groups**
 - **Service Objects**

@@ -127,7 +127,8 @@ class CiscoParser:
                         port = f"{parts[2]}-{parts[3]}"
                     else:
                         port = map_port(parts[-1])  # Use map_port from __init__.py
-                    current_object["members"].append(port)
+                    self.add_service_if_not_exists(port, current_object["protocol"])
+                    current_object["members"].append(self.sanitize_name(f"{current_object['protocol'].upper()}-{port}"))
             elif line.startswith('group-object'):
                 if current_object:
                     obj_name = self.sanitize_name(line.split()[-1])
@@ -145,6 +146,17 @@ class CiscoParser:
 
         if current_object:
             self.save_current_object(current_object, current_type, first_pass=True)
+
+    def add_service_if_not_exists(self, port, protocol):
+        mapped_port = map_port(port)
+        service_name = self.sanitize_name(f"{protocol.upper()}-{mapped_port}")
+        if not any(service["name"] == service_name for service in self.data["Service"]):
+            new_service = {
+                "name": service_name,
+                "protocol": {protocol: {"port": mapped_port}}
+            }
+            self.data["Service"].append(new_service)
+            self.logger.debug(f"Added new service: {new_service}")
 
     def save_current_object(self, obj, obj_type, first_pass):
         if obj_type == "address":
@@ -172,31 +184,22 @@ class CiscoParser:
             self.data["Service"].append(obj)
         elif obj_type == "ServiceGroup":
             if len(obj["members"]) == 1:
+                # Handle single member service group as a Service
                 single_member = obj["members"][0]
-                # Check if the single member already exists as a service or a service group
-                if any(service["name"] == single_member for service in self.data["Service"]) or \
-                any(group["name"] == single_member for group in self.data["ServiceGroup"]):
-                    obj["name"] = self.sanitize_name(obj["name"])
-                    obj["members"] = obj.pop("members", [])
-                    obj.pop("protocol", None)  # Remove the protocol key if it exists
-                    if "description" in obj:
-                        obj.pop("description", None)  # Remove the description key if it exists
-                    self.data["ServiceGroup"].append(obj)
-                else:
-                    new_service = {
-                        "name": self.sanitize_name(obj["name"]),
-                        "protocol": {obj["protocol"]: {"port": single_member}}
-                    }
-                    if "description" in obj:
-                        new_service["description"] = obj["description"]
-                    self.single_service_groups.append(new_service)
+                new_service = {
+                    "name": self.sanitize_name(obj["name"]),
+                    "protocol": {obj["protocol"]: {"port": single_member.split("-")[-1]}}
+                }
+                self.data["Service"].append(new_service)
             else:
-                obj["name"] = self.sanitize_name(obj["name"])
-                obj["members"] = obj.pop("members", [])
-                obj.pop("protocol", None)  # Remove the protocol key if it exists
-                if "description" in obj:
-                    obj.pop("description", None)  # Remove the description key if it exists
+                obj["members"] = list(set([self.get_correct_service_name(member) for member in obj["members"]]))  # Ensure unique members
                 self.data["ServiceGroup"].append(obj)
+
+    def get_correct_service_name(self, member):
+        for service in self.data["Service"]:
+            if member.split("-")[-1] == service["protocol"].get(list(service["protocol"].keys())[0])["port"]:
+                return service["name"]
+        return member
 
     def resolve_groups(self):
         passes = 0
@@ -236,6 +239,7 @@ class CiscoParser:
             if "members" in service_group:
                 service_group["members"] = [member for member in service_group["members"] if member not in self.unsupported_services]
         self.data["ServiceGroup"] = [group for group in self.data["ServiceGroup"] if "members" in group and group["members"]]
+
 
     def netmask_to_cidr(self, netmask):
         return sum([bin(int(x)).count('1') for x in netmask.split('.')])

@@ -430,7 +430,7 @@ class SCMObjectManager:
 
     @staticmethod
     def normalize(obj):
-        irrelevant_keys = {'folder', 'type', 'fqdn'}
+        irrelevant_keys = {'folder', 'type', 'fqdn', 'protocol', 'description'}
         for key in irrelevant_keys:
             obj.pop(key, None)
         for key, value in obj.items():

@@ -63,6 +63,7 @@ local_settings.py
 main2.py
 process2.py
 parse_panos2.py
+parse_cisco2.py
 db.sqlite3
 db.sqlite3-journal
 

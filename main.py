@@ -64,7 +64,7 @@ def run_selected_objects(parsed_data, scm_obj_manager, folder_scope, device_grou
         logger.warning(f"No valid objects found to run for {run_objects_list}")
         return
     
-    scm_obj_manager.process_objects(parsed_data, folder_scope, device_group_name, max_workers=6)
+    scm_obj_manager.process_objects(parsed_data, folder_scope, device_group_name, max_workers=6, limit=config.limit)
 
 def main(config, run_objects=None, run_security=False, run_app_override=False, run_decrypt_rules=False, run_nat=False, run_all=False):
     try:
@@ -104,7 +104,7 @@ def main(config, run_objects=None, run_security=False, run_app_override=False, r
         scm_obj_manager = setup_scm_object_manager(api_session, configure, selected_obj_types, config.sec_obj, config.nat_obj, folder_scope)
 
         if run_all:
-            scm_obj_manager.process_objects(parsed_data, folder_scope, device_group_name, max_workers=6)
+            scm_obj_manager.process_objects(parsed_data, folder_scope, device_group_name, max_workers=6, limit=config.limit)
             scm_obj_manager.process_rules(config.sec_obj, parsed_data, file_path, limit=config.limit, rule_type='security')
             scm_obj_manager.process_rules(config.app_override_obj, parsed_data, file_path, limit=config.limit, rule_type='application-override')
             scm_obj_manager.process_rules(config.decryption_rule_obj, parsed_data, file_path, limit=config.limit, rule_type='decryption')
@@ -123,7 +123,7 @@ def main(config, run_objects=None, run_security=False, run_app_override=False, r
                 configure.set_max_workers(1)  # Set max workers to 1 for NAT rules
                 scm_obj_manager.process_rules(config.nat_obj, parsed_data, file_path, limit=config.limit, rule_type='nat')
             else:
-                scm_obj_manager.process_objects(parsed_data, folder_scope, device_group_name, max_workers=6)
+                scm_obj_manager.process_objects(parsed_data, folder_scope, device_group_name, max_workers=6, limit=config.limit)
 
         end_time = time.time()
         logger.info(f"Script execution time: {end_time - start_time:.2f} seconds")

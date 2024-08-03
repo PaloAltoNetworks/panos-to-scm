@@ -1215,7 +1215,7 @@ class XMLParser:
                 dns_rewrite = destination_translation.find('dns-rewrite')
 
                 destination_translation_dict = {
-                    'translated_address_single': translated_address.text if translated_address is not None else None,
+                    'translated_address': translated_address.text if translated_address is not None else None,
                     'translated_port': int(translated_port.text) if translated_port is not None else None,
                     'dns_rewrite': {
                         'direction': dns_rewrite.find('direction').text if dns_rewrite is not None else None
@@ -1253,12 +1253,12 @@ class XMLParser:
                     }
 
                 elif static_ip is not None:
-                    translated_address_single = static_ip.find('translated-address')
+                    translated_address = static_ip.find('translated-address')
                     bi_directional = static_ip.find('bi-directional')
 
                     source_translation_dict = {
                         'static_ip': {
-                            'translated_address_single': translated_address_single.text if translated_address_single is not None else None,
+                            'translated_address': translated_address.text if translated_address is not None else None,
                             'bi_directional': bi_directional.text if bi_directional is not None else None,
                         }
                     }
@@ -1351,7 +1351,7 @@ class XMLParser:
                 dns_rewrite = destination_translation.find('dns-rewrite')
 
                 destination_translation_dict = {
-                    'translated_address_single': translated_address.text if translated_address is not None else None,
+                    'translated_address': translated_address.text if translated_address is not None else None,
                     'translated_port': int(translated_port.text) if translated_port is not None else None,
                     'dns_rewrite': {
                         'direction': dns_rewrite.find('direction').text if dns_rewrite is not None else None
@@ -1389,12 +1389,12 @@ class XMLParser:
                     }
 
                 elif static_ip is not None:
-                    translated_address_single = static_ip.find('translated-address')
+                    translated_address = static_ip.find('translated-address')
                     bi_directional = static_ip.find('bi-directional')
 
                     source_translation_dict = {
                         'static_ip': {
-                            'translated_address_single': translated_address_single.text if translated_address_single is not None else None,
+                            'translated_address': translated_address.text if translated_address is not None else None,
                             'bi_directional': bi_directional.text if bi_directional is not None else None,
                         }
                     }

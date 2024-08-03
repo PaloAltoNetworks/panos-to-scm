@@ -17,7 +17,10 @@ class CiscoParser:
         self.addresses = set()  # To keep track of already known addresses
         self.services = set()   # To keep track of already known services
         self.single_service_groups = []  # To keep track of single-member service groups
-        self.unsupported_services = {"icmp"}
+        self.unsupported_services = {
+            "icmp", "PING.icmp_v4", "obj_icmp_echo-reply", "obj_icmp_time-exceeded", 
+            "obj_icmp_echo", "obj_icmp_unreachable"
+        }
         self.unresolved_groups = {}  # To track unresolved groups and their members
         self.service_name_mapping = {}  # To map original service names to new names
         self.processed_services = set()  # To track processed services
@@ -230,10 +233,19 @@ class CiscoParser:
 
     def filter_unsupported_services(self):
         # Remove unsupported service groups and their references
+        filtered_service_groups = []
         for service_group in self.data["ServiceGroup"]:
             if "members" in service_group:
-                service_group["members"] = [member for member in service_group["members"] if member not in self.unsupported_services]
-        self.data["ServiceGroup"] = [group for group in self.data["ServiceGroup"] if "members" in group and group["members"]]
+                filtered_members = [member for member in service_group["members"] if member not in self.unsupported_services]
+                if filtered_members:
+                    service_group["members"] = filtered_members
+                    filtered_service_groups.append(service_group)
+                else:
+                    self.logger.debug(f"Skipping service group '{service_group['name']}' as all members are unsupported.")
+            else:
+                filtered_service_groups.append(service_group)
+        
+        self.data["ServiceGroup"] = filtered_service_groups
 
     def netmask_to_cidr(self, netmask):
         return sum([bin(int(x)).count('1') for x in netmask.split('.')])

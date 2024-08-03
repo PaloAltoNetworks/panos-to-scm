@@ -19,6 +19,8 @@ class CiscoParser:
         self.single_service_groups = []  # To keep track of single-member service groups
         self.unsupported_services = {"icmp"}
         self.unresolved_groups = {}  # To track unresolved groups and their members
+        self.service_name_mapping = {}  # To map original service names to new names
+        self.processed_services = set()  # To track processed services
 
     def parse(self):
         try:
@@ -121,19 +123,25 @@ class CiscoParser:
                             self.logger.debug(f"Added new address: {name} with ip-netmask: {ip_netmask}")
                         current_object["members"].append(name)
             elif line.startswith('port-object'):
-                if current_object:
+                if current_object and current_object['type'] == 'service-group':
                     parts = line.split()
                     if parts[1] == 'range':
                         port = f"{parts[2]}-{parts[3]}"
+                    elif parts[1] == 'eq':
+                        port = map_port(parts[2])
                     else:
-                        port = map_port(parts[-1])  # Use map_port from __init__.py
-                    self.add_service_if_not_exists(port, current_object["protocol"])
-                    current_object["members"].append(self.sanitize_name(f"{current_object['protocol'].upper()}-{port}"))
+                        port = map_port(parts[-1])
+                    service_name = self.sanitize_name(f"{current_object['protocol'].upper()}-{port}")
+                    if service_name not in self.processed_services:
+                        self.add_service(port, current_object["protocol"], service_name)
+                    current_object["members"].append(service_name)
+                    self.service_name_mapping[current_object["name"]] = service_name
             elif line.startswith('group-object'):
                 if current_object:
                     obj_name = self.sanitize_name(line.split()[-1])
-                    current_object["members"].append(obj_name)
-                    self.logger.debug(f"Added group-object member {obj_name} to {current_object['name']}")
+                    mapped_name = self.service_name_mapping.get(obj_name, obj_name)
+                    current_object["members"].append(mapped_name)
+                    self.logger.debug(f"Added group-object member {mapped_name} to {current_object['name']}")
                     if current_type == "AddressGroup":
                         self.unresolved_groups.setdefault(current_object["name"], []).append(obj_name)
             elif line.startswith('service tcp destination eq') or line.startswith('service udp destination eq'):
@@ -147,26 +155,19 @@ class CiscoParser:
         if current_object:
             self.save_current_object(current_object, current_type, first_pass=True)
 
-    def add_service_if_not_exists(self, port, protocol):
-        mapped_port = map_port(port)
-        service_name = self.sanitize_name(f"{protocol.upper()}-{mapped_port}")
-        if not any(service["name"] == service_name for service in self.data["Service"]):
+    def add_service(self, port, protocol, service_name):
+        if service_name not in self.processed_services:
             new_service = {
                 "name": service_name,
-                "protocol": {protocol: {"port": mapped_port}}
+                "protocol": {protocol: {"port": port}}
             }
             self.data["Service"].append(new_service)
+            self.processed_services.add(service_name)
             self.logger.debug(f"Added new service: {new_service}")
 
     def save_current_object(self, obj, obj_type, first_pass):
         if obj_type == "address":
-            if 'ip_netmask' in obj:
-                obj["name"] = self.sanitize_name(obj["name"])
-                self.data["Address"].append(obj)
-            elif 'ip_range' in obj:
-                obj["name"] = self.sanitize_name(obj["name"])
-                self.data["Address"].append(obj)
-            elif 'fqdn' in obj:
+            if 'ip_netmask' in obj or 'ip_range' in obj or 'fqdn' in obj:
                 obj["name"] = self.sanitize_name(obj["name"])
                 self.data["Address"].append(obj)
         elif obj_type == "AddressGroup":
@@ -182,24 +183,18 @@ class CiscoParser:
             port = obj["protocol"][protocol]["port"]
             obj["name"] = self.sanitize_name(f"{protocol.upper()}-{port}")
             self.data["Service"].append(obj)
+            self.service_name_mapping[obj["name"]] = obj["name"]
         elif obj_type == "ServiceGroup":
             if len(obj["members"]) == 1:
-                # Handle single member service group as a Service
+                # Handle single member service group
                 single_member = obj["members"][0]
-                new_service = {
-                    "name": self.sanitize_name(obj["name"]),
-                    "protocol": {obj["protocol"]: {"port": single_member.split("-")[-1]}}
-                }
-                self.data["Service"].append(new_service)
+                self.service_name_mapping[obj["name"]] = single_member
             else:
                 obj["members"] = list(set([self.get_correct_service_name(member) for member in obj["members"]]))  # Ensure unique members
                 self.data["ServiceGroup"].append(obj)
 
     def get_correct_service_name(self, member):
-        for service in self.data["Service"]:
-            if member.split("-")[-1] == service["protocol"].get(list(service["protocol"].keys())[0])["port"]:
-                return service["name"]
-        return member
+        return self.service_name_mapping.get(member, member)
 
     def resolve_groups(self):
         passes = 0
@@ -239,7 +234,6 @@ class CiscoParser:
             if "members" in service_group:
                 service_group["members"] = [member for member in service_group["members"] if member not in self.unsupported_services]
         self.data["ServiceGroup"] = [group for group in self.data["ServiceGroup"] if "members" in group and group["members"]]
-
 
     def netmask_to_cidr(self, netmask):
         return sum([bin(int(x)).count('1') for x in netmask.split('.')])

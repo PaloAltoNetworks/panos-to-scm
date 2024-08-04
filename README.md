@@ -42,7 +42,7 @@ palo_alto_username: service_account_name
 palo_api_token: xxxxxxxxxxxxxxxxxxxxxx
 ```
 
-### Step 4: Executing main.py
+### Step 4: Executing main.py for PAN-OS
 - If you run `main.py` as is, it'll ask if you want to fetch a new `running_config.xml` from your PANOS Endpoint
 - If you want to use an offline XML file, then default XML file name must be in project directory and named `running_config.xml`
 - Otherwise, it'll get the full running config from your PANOS device(controlled at $HOME/.panapi/config.yml)
@@ -71,6 +71,7 @@ palo_api_token: xxxxxxxxxxxxxxxxxxxxxx
 - **URL Filter Profiles**
 - **Vulnerability Profiles**
 - **Anti-Spyware Profiles**
+- **DNS Security Profiles**
 - **Wildfire/Anti-Virus Profiles**: 
 - **File Blocking Profiles**
 - **Decryption Profiles**
@@ -87,6 +88,17 @@ palo_api_token: xxxxxxxxxxxxxxxxxxxxxx
 - **NAT Rules**
 - **Application Override Rules**
 - **Decryption Policy Rules**
+
+## Cisco ASA/Firepower migration to SCM for PANOS
+- If you run `main.py` as is, it'll ask if you want to use the `cisco` or `panos` parser, type `cisco`
+- Optionally, you can target specific object types such as `python main.py -o Address,AddressGroup`
+- The script creates address objects in the form of:
+- - N-address-CIDR for networks/ips that aren't objects in cisco config
+- The script creates service objects in the form of:
+- - There is a `map_port` method that handles terms such as `ssh, rsh, syslog, etc` and maps to port
+- - This then creates object in format `TCP-22`
+- - Additionally, service group objects with single members are treated as a "service" object
+- - If another group references a `single member service group` it knows to reference the correct object
 
 ### Currently Supported Cisco ASA/Firepower Migration Features:
 - **Address Objects**

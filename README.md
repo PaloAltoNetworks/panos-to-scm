@@ -103,6 +103,13 @@ palo_api_token: xxxxxxxxxxxxxxxxxxxxxx
   - This then creates object in format `TCP-22`
   - Additionally, service group objects with single members are treated as a "service" object
   - If another group references a `single member service group` it knows to reference the correct object
+- Script will GET all objects and rules from SCM and then compare your `cisco_config.txt` and post new entries.
+  - There is some conflict resolution logic built in for same name objects that require user input.
+  - Options are:
+    - Merge - Useful for groups/lists
+    - Replace - Replace the SCM value with XML Value
+    - Append - Creates a new object with appended name `_new`. This is still work in progress, policies will still reference the original attribute
+    - Ignore - Ignore the conflict and move on
 
 ### Currently Supported Cisco ASA/Firepower Migration Features:
 - **Address Objects**

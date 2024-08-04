@@ -1,6 +1,7 @@
 import logging
 from logging.handlers import TimedRotatingFileHandler
 import time
+import os  # Import os module
 from config import ConfigurationManager
 from parse.parse_panos import XMLParser
 from parse.parse_cisco import CiscoParser  # Cisco Parser added
@@ -26,7 +27,11 @@ def setup_logging():
     logger.addHandler(console_handler)
 
 def get_file_path_and_type(config, logger):
-    config_choice = input("Do you want to parse Cisco or PANOS configuration? (cisco/panos): ").strip().lower()
+    if os.path.exists('cisco_config.txt'):
+        config_choice = input("Do you want to parse Cisco or PANOS configuration? (cisco/panos): ").strip().lower()
+    else:
+        config_choice = 'panos'
+
     if config_choice == 'panos':
         user_choice = input("Do you want to retrieve new config from Palo Alto NGFW? (yes/no): ").strip().lower()
         file_path = "running_config.xml"

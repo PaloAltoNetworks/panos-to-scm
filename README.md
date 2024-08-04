@@ -48,10 +48,13 @@ palo_api_token: xxxxxxxxxxxxxxxxxxxxxx
 - Otherwise, it'll get the full running config from your PANOS device(controlled at $HOME/.panapi/config.yml)
 - Script will Parse all XML and create dictionary of object types and security rules
 - Script will GET all objects and rules from SCM and then compare your XML and post new entries.
+  - There is some conflict resolution logic built in for same name objects that require user input.
+  - Options are:
+    - Merge - Useful for groups/lists
+    - Replace - Replace the SCM value with XML Value
+    - Append - Creates a new object with appended name `_new`. This is still work in progress, policies will still reference the original attribute
+    - Ignore - Ignore the conflict and move on
 - Also handles rule ordering if something gets out of order(order determined by XML) which occurs in parallel processing
-- Script currently will update objects if value has changed - example, address-group1 has members A,B,C in SCM
-- If PANOS config has A,B,C,D - it will update and PUT D into it..
-- **Append/Merge/Replace** - if you're importing multiple firewalls, and objects are at the same folder, the latest XML object is the master object.. So be aware.
 
 ### Command Line Options:
 - Check the "HELP" feature using `python main.py -h`
@@ -90,15 +93,16 @@ palo_api_token: xxxxxxxxxxxxxxxxxxxxxx
 - **Decryption Policy Rules**
 
 ## Cisco ASA/Firepower migration to SCM for PANOS
+- Your cisco config must be in the project directory and named `cisco_config.txt`
 - If you run `main.py` as is, it'll ask if you want to use the `cisco` or `panos` parser, type `cisco`
 - Optionally, you can target specific object types such as `python main.py -o Address,AddressGroup`
 - The script creates address objects in the form of:
-- - N-address-CIDR for networks/ips that aren't objects in cisco config
+  - N-address-CIDR for networks/ips that aren't objects in cisco config
 - The script creates service objects in the form of:
-- - There is a `map_port` method that handles terms such as `ssh, rsh, syslog, etc` and maps to port
-- - This then creates object in format `TCP-22`
-- - Additionally, service group objects with single members are treated as a "service" object
-- - If another group references a `single member service group` it knows to reference the correct object
+  - There is a `map_port` method that handles terms such as `ssh, rsh, syslog, etc` and maps to port
+  - This then creates object in format `TCP-22`
+  - Additionally, service group objects with single members are treated as a "service" object
+  - If another group references a `single member service group` it knows to reference the correct object
 
 ### Currently Supported Cisco ASA/Firepower Migration Features:
 - **Address Objects**

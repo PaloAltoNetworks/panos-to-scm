@@ -1,5 +1,5 @@
 ## panos-to-scm
-- **Migrate Panorama Device Group OR Local PANOS Firewall config into Strata Cloud Manager**
+- **Migrate Panorama Device Group OR Local PANOS Firewall config into Strata Cloud Manager NGFW**
 - **Migrate Cisco ASA/Firepower running config into Strata Cloud Manager - In progress**
 
 ## Understand the following items before running

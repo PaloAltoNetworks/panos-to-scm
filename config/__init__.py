@@ -16,7 +16,7 @@ class AppConfig:
             obj.URLAccessProfile, obj.VulnerabilityProtectionProfile, 
             obj.AntiSpywareProfile, obj.FileBlockingProfile,
             # obj.WildFireAntivirusProfile,
-            obj.ProfileGroup, obj.ApplicationFilter, obj.ApplicationGroup,
+            obj.DNSSecurityProfile, obj.ProfileGroup, obj.ApplicationFilter, obj.ApplicationGroup,
             obj.Schedule, obj.DecryptionProfile
         ]
         self.sec_obj = obj.SecurityRule

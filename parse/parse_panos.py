@@ -90,7 +90,8 @@ class XMLParser:
             'Zones': self._parse_entries(self._zones),
             'DecryptionProfile': self._parse_entries(self._decryption_profiles_entries),
             'decryption_pre_rules': self._parse_entries(self._decryption_pre_rules_entries),
-            'decryption_post_rules': self._parse_entries(self._decryption_post_rules_entries)
+            'decryption_post_rules': self._parse_entries(self._decryption_post_rules_entries),
+            'DNSSecurityProfile': self._parse_entries(self._dns_security_profiles_entries),
         }
 
     def parse_specific_types(self, object_types):
@@ -122,7 +123,8 @@ class XMLParser:
             'Zones': self._zones,
             'DecryptionProfile': self._decryption_profiles_entries,
             'decryption_pre_rules': self._decryption_pre_rules_entries,
-            'decryption_post_rules': self._decryption_post_rules_entries
+            'decryption_post_rules': self._decryption_post_rules_entries,
+            'DNSSecurityProfile': self._dns_security_profiles_entries,
         }
 
         for obj_type in object_types:
@@ -312,6 +314,83 @@ class XMLParser:
             spyware_profiles.append(spyware_profile)
 
         return spyware_profiles
+
+    def _dns_security_profiles_entries(self):
+        base_xpath_dict = {
+            'local': './devices/entry/vsys/entry/profiles/spyware/entry',
+            'shared': './shared/profiles/spyware/entry',
+            'device-group': './devices/entry/device-group/entry[@name="{self.device_group_name}"]/profiles/spyware/entry'
+        }
+        base_xpath = self._get_base_xpath(base_xpath_dict)
+        dns_security_profiles = []
+
+        for profile_entry in self.root.findall(base_xpath):
+            profile_name = profile_entry.get('name')
+            botnet_domains_element = profile_entry.find('botnet-domains')
+            if botnet_domains_element is not None:
+                dns_security_profile = {
+                    'name': profile_name,
+                    'botnet_domains': {}
+                }
+
+                # Handle dns_security_categories
+                dns_security_categories = []
+                for category_entry in botnet_domains_element.findall('./dns-security-categories/entry'):
+                    category = {
+                        'name': category_entry.get('name'),
+                        'log_level': category_entry.find('log-level').text if category_entry.find('log-level') is not None else 'default',
+                        'action': category_entry.find('action').text if category_entry.find('action') is not None else 'default',
+                        'packet_capture': category_entry.find('packet-capture').text if category_entry.find('packet-capture') is not None else 'disable'
+                    }
+                    dns_security_categories.append(category)
+
+                # Handle lists
+                lists = []
+                for list_entry in botnet_domains_element.findall('./lists/entry'):
+                    action_element = list_entry.find('./action/*')
+                    action = {action_element.tag: {}} if action_element is not None else {}
+                    list_item = {
+                        'name': list_entry.get('name'),
+                        'action': action,
+                        'packet_capture': list_entry.find('packet-capture').text if list_entry.find('packet-capture') is not None else 'disable'
+                    }
+                    lists.append(list_item)
+
+                # Handle sinkhole
+                sinkhole_element = botnet_domains_element.find('sinkhole')
+                sinkhole = {
+                    'ipv4_address': sinkhole_element.find('ipv4-address').text if sinkhole_element.find('ipv4-address') is not None else '127.0.0.1',
+                    'ipv6_address': sinkhole_element.find('ipv6-address').text if sinkhole_element.find('ipv6-address') is not None else '::1'
+                }
+                # Ensure ipv4_address is within allowed values
+                if sinkhole['ipv4_address'] not in ['127.0.0.1', 'pan-sinkhole-default-ip']:
+                    sinkhole['ipv4_address'] = '127.0.0.1'
+                # Ensure ipv6_address is within allowed values
+                if sinkhole['ipv6_address'] != '::1':
+                    sinkhole['ipv6_address'] = '::1'
+
+                # Handle whitelist
+                whitelist = []
+                for whitelist_entry in botnet_domains_element.findall('./whitelist/entry'):
+                    whitelist_item = {
+                        'name': whitelist_entry.get('name'),
+                        'description': whitelist_entry.find('description').text if whitelist_entry.find('description') is not None else ''
+                    }
+                    whitelist.append(whitelist_item)
+
+                # Ensure there is at least one placeholder in the whitelist if it's empty
+                if not whitelist:
+                    whitelist.append({'name': 'placeholder', 'description': 'placeholder'})
+
+                if dns_security_categories:
+                    dns_security_profile['botnet_domains']['dns_security_categories'] = dns_security_categories
+                dns_security_profile['botnet_domains']['lists'] = lists
+                dns_security_profile['botnet_domains']['sinkhole'] = sinkhole
+                dns_security_profile['botnet_domains']['whitelist'] = whitelist
+
+                dns_security_profiles.append(dns_security_profile)
+
+        return dns_security_profiles
 
     def _decryption_profiles_entries(self):
         base_xpath_dict = {
@@ -536,6 +615,7 @@ class XMLParser:
             spyware_members = [member.text for member in entry.findall('./spyware/member')]
             if spyware_members:
                 profile_group['spyware'] = spyware_members
+                profile_group['dns_security'] = spyware_members
 
             vulnerability_members = [member.text for member in entry.findall('./vulnerability/member')]
             if vulnerability_members:

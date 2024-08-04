@@ -63,6 +63,7 @@ local_settings.py
 main2.py
 process2.py
 parse_panos2.py
+parse_cisco2.py
 db.sqlite3
 db.sqlite3-journal
 
@@ -165,6 +166,10 @@ debug-log.txt.*
 running_config.xml
 config*.xml
 pa-440.xml
+
+#cisco config files
+cisco.txt
+cisco_config.txt
 
 
 # PyCharm

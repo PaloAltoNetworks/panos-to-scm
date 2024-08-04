@@ -8,14 +8,15 @@ class AppConfig:
     def __init__(self):
         self.max_workers = 4
         self.xml_file_path = 'running_config.xml'
-        self.limit = '10000'
+        self.cisco_file_path = 'cisco_config.txt'
+        self.limit = '40000'
         self.obj_types = [
             obj.Tag, obj.Application, obj.Address, obj.AddressGroup, obj.Service, 
             obj.ServiceGroup, obj.ExternalDynamicList, obj.URLCategory, 
             obj.URLAccessProfile, obj.VulnerabilityProtectionProfile, 
             obj.AntiSpywareProfile, obj.FileBlockingProfile,
             # obj.WildFireAntivirusProfile,
-            obj.ProfileGroup, obj.ApplicationFilter, obj.ApplicationGroup,
+            obj.DNSSecurityProfile, obj.ProfileGroup, obj.ApplicationFilter, obj.ApplicationGroup,
             obj.Schedule, obj.DecryptionProfile
         ]
         self.sec_obj = obj.SecurityRule

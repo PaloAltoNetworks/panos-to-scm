@@ -64,3 +64,14 @@ def map_port(port):
         # Add other mappings as needed
     }
     return port_mapping.get(port, port)
+
+def map_application(app):
+    app_mapping = {
+        'icmp': 'icmp',
+        'time-exceeded': 'icmp',
+        'unreachable': 'icmp',
+        'echo-reply': 'ping',
+        'echo': 'ping',
+        'destination-unreachable': 'icmp'
+    }
+    return app_mapping.get(app, app)

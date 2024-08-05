@@ -121,17 +121,23 @@ class CiscoParser:
                     elif parts[1] == 'host':
                         ip_netmask = parts[2]
                         name = self.sanitize_name(f'H-{ip_netmask}')
+                        # self.logger.warning(f'Network-object {name} without netmask: {ip_netmask}')
                         if ip_netmask not in self.addresses:
                             self.addresses.add(ip_netmask)
                             self.data['Address'].append({'name': name, 'ip_netmask': ip_netmask})
-                            self.logger.debug(f'Added new address: {name} with ip-netmask: {ip_netmask}')
+                            self.logger.debug(f'1 Added new address: {name} with ip-netmask: {ip_netmask}')
                         current_object['members'].append(name)
                     else:
                         if len(parts) == 3:
                             try:
                                 cidr = self.netmask_to_cidr(parts[2])
                                 ip_netmask = f'{parts[1]}/{cidr}'
-                                name = self.sanitize_name(f'N-{parts[1]}-{cidr}')
+                                if cidr == 32 or cidr == 128:
+                                    name = self.sanitize_name(f'H-{parts[1]}')
+                                    self.logger.debug(f'1 Network-object {name} without netmask: {ip_netmask}')
+                                else:
+                                    name = self.sanitize_name(f'N-{parts[1]}-{cidr}')
+                                    self.logger.debug(f'1 Network-object {name} with netmask: {ip_netmask}')
                             except ValueError as e:
                                 self.logger.error(f'Error parsing network-object: {e}')
                                 continue
@@ -141,7 +147,7 @@ class CiscoParser:
                         if ip_netmask not in self.addresses:
                             self.addresses.add(ip_netmask)
                             self.data['Address'].append({'name': name, 'ip_netmask': ip_netmask})
-                            self.logger.debug(f'Added new address: {name} with ip-netmask: {ip_netmask}')
+                            self.logger.debug(f'2 Added new address: {name} with ip-netmask: {ip_netmask}')
                         current_object['members'].append(name)
             elif line.startswith('port-object'):
                 if current_object and current_object['type'] == 'service-group':
@@ -172,144 +178,32 @@ class CiscoParser:
                     protocol = 'tcp' if 'tcp' in line else 'udp'
                     current_object['protocol'] = {protocol: {'port': port}}
                     self.logger.debug(f'Parsed service: {current_object}')
+            elif 'advanced permit' in line and 'rule-id' in line:
+                parts = line.split()
+                if 'eq' in parts:
+                    eq_index = parts.index('eq')
+                    if eq_index + 1 < len(parts):
+                        protocol = parts[4].upper()
+                        port = map_port(parts[eq_index + 1])
+                        service_name = f'{protocol}-{port}'
+                        if service_name not in self.processed_services:
+                            self.create_service(protocol, port)
+                if len(parts) >= 6:
+                    destination_ip = parts[-3]
+                    netmask = parts[-2]
+                    try:
+                        cidr = self.netmask_to_cidr(netmask)
+                        ip_netmask = f'{destination_ip}/{self.netmask_to_cidr(netmask)}'
+                        name = self.sanitize_name(f'N-{destination_ip}-{cidr}')
+                        if ip_netmask not in self.addresses:
+                            self.addresses.add(ip_netmask)
+                            self.data['Address'].append({'name': name, 'ip_netmask': ip_netmask})
+                            self.logger.debug(f'3 Added new address: {name} with ip-netmask: {ip_netmask}')
+                    except ValueError as e:
+                        self.logger.error(f'Error parsing IP Netmask: {e}')
 
         if current_object:
             self.save_current_object(current_object, current_type, first_pass=True)
-
-    def _parse_hostname(self, line):
-        parts = line.split()
-        name = parts[1]
-        self.create_tag(name, 'Red-Orange')
-        self.hostname = name
-
-    def _parse_access_list(self, line):
-        parts = line.split()
-        if 'eq' in parts:
-            eq_index = parts.index('eq')
-            if eq_index + 1 < len(parts):
-                port = map_port(parts[eq_index + 1])
-                protocol = 'tcp' if 'tcp' in parts else 'udp'
-                self.create_service(protocol, port)
-
-    def _start_new_object(self, current_object, line, obj_type, current_type):
-        if current_object:
-            self.save_current_object(current_object, current_type, first_pass=True)
-        current_object = {'name': line.split()[-1], 'type': obj_type}
-        if current_type in ['AddressGroup', 'ServiceGroup']:
-            current_object['members'] = []
-        if current_type == 'ServiceGroup':
-            parts = line.split()
-            if len(parts) >= 2:
-                current_object['protocol'] = parts[-1]
-        return current_object, current_type
-
-    def _parse_subnet(self, line, current_object):
-        parts = line.split()
-        try:
-            subnet = ip_network(f'{parts[1]}/{self.netmask_to_cidr(parts[2])}')
-            current_object['ip_netmask'] = str(subnet)
-        except ValueError as e:
-            self.logger.error(f'Error parsing subnet: {e}')
-
-    def _parse_host(self, line, current_object):
-        current_object['ip_netmask'] = line.split()[-1]
-        self.logger.debug(f'Parsed host: {current_object}')
-
-    def _parse_range(self, line, current_object):
-        parts = line.split()
-        range_start = ip_address(parts[1])
-        range_end = ip_address(parts[2])
-        current_object['ip_range'] = f'{range_start}-{range_end}'
-
-    def _parse_fqdn(self, line, current_object):
-        parts = line.split()
-        current_object['fqdn'] = parts[-1]  # Ensure 'v4' or 'v6' is ignored
-        self.logger.debug(f'Parsed fqdn: {current_object}')
-
-    def _parse_network_object(self, line, current_object):
-        parts = line.split()
-        if parts[1] == 'object':
-            obj_name = self.sanitize_name(parts[2])
-            if 'members' not in current_object:
-                current_object['members'] = []
-            current_object['members'].append(obj_name)
-            self.logger.debug(f'Added network-object member {obj_name} to {current_object["name"]}')
-        elif parts[1] == 'host':
-            self._parse_host_network_object(parts, current_object)
-        else:
-            self._parse_subnet_network_object(parts, current_object)
-
-    def _parse_host_network_object(self, parts, current_object):
-        ip_netmask = parts[2]
-        name = self.sanitize_name(f'H-{ip_netmask}')
-        if ip_netmask not in self.addresses:
-            self.addresses.add(ip_netmask)
-            self.data['Address'].append({'name': name, 'ip_netmask': ip_netmask})
-            self.logger.debug(f'Added new address: {name} with ip-netmask: {ip_netmask}')
-        if 'members' not in current_object:
-            current_object['members'] = []
-        current_object['members'].append(name)
-
-    def _parse_subnet_network_object(self, parts, current_object):
-        if len(parts) == 3:
-            try:
-                cidr = self.netmask_to_cidr(parts[2])
-                ip_netmask = f'{parts[1]}/{cidr}'
-                name = self.sanitize_name(f'N-{parts[1]}-{cidr}')
-            except ValueError as e:
-                self.logger.error(f'Error parsing network-object: {e}')
-                return
-        else:
-            ip_netmask = parts[1]
-            name = self.sanitize_name(f'H-{ip_netmask}')
-        if ip_netmask not in self.addresses:
-            self.addresses.add(ip_netmask)
-            self.data['Address'].append({'name': name, 'ip_netmask': ip_netmask})
-            self.logger.debug(f'Added new address: {name} with ip-netmask: {ip_netmask}')
-        if 'members' not in current_object:
-            current_object['members'] = []
-        current_object['members'].append(name)
-
-    def _parse_port_object(self, line, current_object):
-        if current_object and current_object['type'] == 'service-group':
-            parts = line.split()
-            port = self._get_port_from_parts(parts)
-            if 'protocol' in current_object:
-                service_name = self.sanitize_name(f'{current_object["protocol"].upper()}-{port}')
-                if service_name not in self.processed_services:
-                    self.add_service(port, current_object['protocol'], service_name)
-                if 'members' not in current_object:
-                    current_object['members'] = []
-                current_object['members'].append(service_name)
-                self.service_name_mapping[current_object['name']] = service_name
-            else:
-                self.logger.error(f'Missing protocol in service-group: {current_object["name"]}')
-
-    def _get_port_from_parts(self, parts):
-        if parts[1] == 'range':
-            return f'{parts[2]}-{parts[3]}'
-        elif parts[1] == 'eq':
-            return map_port(parts[2])
-        else:
-            return map_port(parts[-1])
-
-    def _parse_group_object(self, line, current_object, current_type):
-        obj_name = self.sanitize_name(line.split()[-1])
-        mapped_name = self.service_name_mapping.get(obj_name, obj_name)
-        if 'members' not in current_object:
-            current_object['members'] = []
-        current_object['members'].append(mapped_name)
-        self.logger.debug(f'Added group-object member {mapped_name} to {current_object["name"]}')
-        if current_type == 'AddressGroup':
-            self.unresolved_groups.setdefault(current_object['name'], []).append(obj_name)
-
-    def _parse_service_destination_eq(self, line, current_object):
-        if current_object and current_object.get('type') == 'Service':
-            parts = line.split()
-            port = map_port(parts[-1])
-            protocol = 'tcp' if 'tcp' in line else 'udp'
-            current_object['protocol'] = {protocol: {'port': port}}
-            self.logger.debug(f'Parsed service: {current_object}')
 
     def add_service(self, port, protocol, service_name):
         if service_name not in self.processed_services:
@@ -342,24 +236,6 @@ class CiscoParser:
             self.service_name_mapping[obj['name']] = obj['name']
         elif obj_type == 'ServiceGroup':
             self._save_service_group(obj)
-
-    def _save_address(self, obj):
-        if 'ip_netmask' in obj or 'ip_range' in obj or 'fqdn' in obj:
-            obj['name'] = self.sanitize_name(obj['name'])
-            self.data['Address'].append(obj)
-
-    def _save_address_group(self, obj, first_pass):
-        obj['name'] = self.sanitize_name(obj['name'])
-        obj['static'] = obj.pop('members', [])
-        self.logger.debug(f'Saved AddressGroup for {"first" if first_pass else "subsequent"} pass: {obj["name"]} with members: {obj["static"]}')
-        self.data['AddressGroup'].append(obj)
-
-    def _save_service(self, obj):
-        protocol = list(obj['protocol'].keys())[0]
-        port = obj['protocol'][protocol]['port']
-        obj['name'] = self.sanitize_name(f'{protocol.upper()}-{port}')
-        self.data['Service'].append(obj)
-        self.service_name_mapping[obj['name']] = obj['name']
 
     def _save_service_group(self, obj):
         if 'members' not in obj:
@@ -465,22 +341,6 @@ class CiscoParser:
             self.processed_tags.add(tag_name)
             self.logger.debug(f'Added new tag: {new_tag}')
         return tag_name
-
-    def is_supported_service(self, service_name):
-        if service_name in self.unsupported_services:
-            return False
-        if service_name in self.service_name_mapping:
-            return True
-        for service in self.data['Service']:
-            if service['name'] == service_name:
-                return True
-        return False
-
-    def is_supported_service_group(self, group_name):
-        for group in self.data['ServiceGroup']:
-            if group['name'] == group_name:
-                return all(self.is_supported_service(member) for member in group['members'])
-        return False
 
     def _security_pre_rules_entries(self):
         security_rules = {}
@@ -602,6 +462,28 @@ class CiscoParser:
                             elif not destination:
                                 destination = parts[i + 1]
                             i += 2
+                        elif re.match(r'\d+\.\d+\.\d+\.\d+', part):
+                            if i + 1 < len(parts) and re.match(r'\d+\.\d+\.\d+\.\d+', parts[i + 1]):
+                                cidr = self.netmask_to_cidr(parts[i + 1])
+                                ip_netmask = f'{part}/{cidr}'
+                                if ip_netmask not in self.addresses:
+                                    self.addresses.add(ip_netmask)
+                                    if cidr == 32 or cidr == 128:
+                                        name = self.sanitize_name(f'H-{part}')
+                                        self.data['Address'].append({'name': name, 'ip_netmask': ip_netmask})
+                                        self.logger.debug(f'Added new address: {name} with ip-netmask: {ip_netmask}')
+                                    else:
+                                        name = self.sanitize_name(f'N-{part}-{cidr}')
+                                        self.data['Address'].append({'name': name, 'ip_netmask': ip_netmask})
+                                        self.logger.debug(f'Added new address: {name} with ip-netmask: {ip_netmask}')
+                                if not destination:
+                                    if cidr == 32 or cidr == 128:
+                                        destination = self.sanitize_name(f'H-{part}')
+                                    else:
+                                        destination = self.sanitize_name(f'N-{part}-{cidr}')
+                                i += 2
+                            else:
+                                i += 1
                         elif part == 'any':
                             if not source:
                                 source = 'any'

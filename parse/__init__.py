@@ -11,6 +11,8 @@ def map_port(port):
         'syslog': '514',
         'ftp': '21',
         'tftp': '69',
+        'dhcp': '67',
+        'tacacs': '49',
         'dns': '53',
         'smtp': '25',
         'pop3': '110',

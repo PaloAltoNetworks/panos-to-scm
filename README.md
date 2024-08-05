@@ -116,3 +116,4 @@ palo_api_token: xxxxxxxxxxxxxxxxxxxxxx
 - **Address Groups**
 - **Service Objects**
 - **Service Groups**
+- **Security Rules - In process**

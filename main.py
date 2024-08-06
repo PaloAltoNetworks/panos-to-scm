@@ -81,8 +81,10 @@ def main(config, run_objects=None, run_security=False, run_app_override=False, r
 
         file_path, config_type = get_file_path_and_type(config, logger)
 
+        logger.info(f"File path: {file_path}, Config type: {config_type}")
+
         if config_type == 'panos':
-            parser = XMLParser(file_path, None)
+            parser = XMLParser(file_path, config_type)
             folder_scope, config_type, device_group_name = parser.parse_config_and_set_scope(file_path)
             logger.info(f'Current SCM Folder: {folder_scope}, PANOS: {config_type}, Device Group: {device_group_name}')
             parser.config_type = config_type
@@ -135,7 +137,7 @@ def main(config, run_objects=None, run_security=False, run_app_override=False, r
         logger.info(f"Script ended at {time.ctime(end_time)}")
 
     except Exception as e:
-        logger.error(f"An error occurred: {e}")
+        logger.error(f"An error occurred: {e}", exc_info=True)
     
     complete_time = time.time()
     logger.info(f"Final Script execution time: {complete_time - begin_time:.2f} seconds")

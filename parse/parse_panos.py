@@ -10,6 +10,22 @@ class XMLParser:
         self.tree = ET.parse(self.file_path)
         self.root = self.tree.getroot()
         self.logger = logging.getLogger(__name__)
+        self.logger.debug(f"Initialized XMLParser with file_path: {self.file_path}, config_type: {self.config_type}, device_group_name: {self.device_group_name}")
+
+    def _get_base_xpath(self, path_dict):
+        if self.config_type == 'panorama/shared':
+            return path_dict.get('shared')
+        elif self.config_type == 'panorama/device-group':
+            if self.device_group_name:
+                try:
+                    return path_dict.get('device-group', '').format(device_group_name=self.device_group_name)
+                except KeyError:
+                    self.logger.error(f"Device group name not found in path_dict: {path_dict}")
+                    raise
+            else:
+                self.logger.error("Device group name is required for panorama/device-group but is None.")
+                raise ValueError("Device group name is required for panorama/device-group but is None.")
+        return path_dict.get('local')
 
     def _sanitize_name(self, name: str) -> str:
         """
@@ -40,6 +56,8 @@ class XMLParser:
             confirm_folder = input('What folder do you want the objects/policies to end up in? \n Use All for "Global" -Example "US-East-DC1" This is Case Sensitive: ').strip()
             folder_scope = confirm_folder
             config_type = 'local'
+
+        self.logger.debug(f"Parsed config and set scope: folder_scope={folder_scope}, config_type={config_type}, device_group_name={device_group_name}")
 
         return folder_scope, config_type, device_group_name
 
@@ -138,13 +156,6 @@ class XMLParser:
     def _parse_entries(self, parse_function):
         return parse_function()
 
-    def _get_base_xpath(self, path_dict):
-        if self.config_type == 'panorama/shared':
-            return path_dict.get('shared')
-        elif self.config_type == 'panorama/device-group':
-            return path_dict.get('device-group', '').format(device_group_name=self.device_group_name)
-        return path_dict.get('local')
-
     def _url_category_entries(self):
         # Example: You can refactor individual parse methods in a similar way
         base_xpath_dict = {
@@ -208,7 +219,7 @@ class XMLParser:
         base_xpath_dict = {
             'local': './devices/entry/vsys/entry/profiles/vulnerability/entry',
             'shared': './shared/profiles/vulnerability/entry',
-            'device-group': './devices/entry/device-group/entry[@name="{self.device_group_name}"]/profiles/vulnerability/entry'
+            'device-group': './devices/entry/device-group/entry[@name="{device_group_name}"]/profiles/vulnerability/entry'
         }
         base_xpath = self._get_base_xpath(base_xpath_dict)
         vulnerability_profiles = []
@@ -267,7 +278,7 @@ class XMLParser:
         base_xpath_dict = {
             'local': './devices/entry/vsys/entry/profiles/spyware/entry',
             'shared': './shared/profiles/spyware/entry',
-            'device-group': './devices/entry/device-group/entry[@name="{self.device_group_name}"]/profiles/spyware/entry'
+            'device-group': './devices/entry/device-group/entry[@name="{device_group_name}"]/profiles/spyware/entry'
         }
         base_xpath = self._get_base_xpath(base_xpath_dict)
         spyware_profiles = []
@@ -319,7 +330,7 @@ class XMLParser:
         base_xpath_dict = {
             'local': './devices/entry/vsys/entry/profiles/spyware/entry',
             'shared': './shared/profiles/spyware/entry',
-            'device-group': './devices/entry/device-group/entry[@name="{self.device_group_name}"]/profiles/spyware/entry'
+            'device-group': './devices/entry/device-group/entry[@name="{device_group_name}"]/profiles/spyware/entry'
         }
         base_xpath = self._get_base_xpath(base_xpath_dict)
         dns_security_profiles = []
@@ -396,7 +407,7 @@ class XMLParser:
         base_xpath_dict = {
             'local': './devices/entry/vsys/entry/profiles/decryption/entry',
             'shared': './shared/profiles/decryption/entry',
-            'device-group': './devices/entry/device-group/entry[@name="{self.device_group_name}"]/profiles/decryption/entry'
+            'device-group': './devices/entry/device-group/entry[@name="{device_group_name}"]/profiles/decryption/entry'
         }
         base_xpath = self._get_base_xpath(base_xpath_dict)
         decryption_profiles = []
@@ -505,7 +516,7 @@ class XMLParser:
         base_xpath_dict = {
             'local': './devices/entry/vsys/entry/profiles/virus/entry',
             'shared': './shared/profiles/virus/entry',
-            'device-group': './devices/entry/device-group/entry[@name="{self.device_group_name}"]/profiles/virus/entry'
+            'device-group': './devices/entry/device-group/entry[@name="{device_group_name}"]/profiles/virus/entry'
         }
         base_xpath = self._get_base_xpath(base_xpath_dict)
         antivirus_profiles = []
@@ -555,7 +566,7 @@ class XMLParser:
         base_xpath_dict = {
             'local': './devices/entry/vsys/entry/profiles/file-blocking/entry',
             'shared': './shared/profiles/file-blocking/entry',
-            'device-group': './devices/entry/device-group/entry[@name="{self.device_group_name}"]/profiles/file-blocking/entry'
+            'device-group': './devices/entry/device-group/entry[@name="{device_group_name}"]/profiles/file-blocking/entry'
         }
         base_xpath = self._get_base_xpath(base_xpath_dict)
         fileblocking_profiles = []
@@ -599,7 +610,7 @@ class XMLParser:
         base_xpath_dict = {
             'local': './devices/entry/vsys/entry/profile-group/entry',
             'shared': './shared/profile-group/entry',
-            'device-group': './devices/entry/device-group/entry[@name="{self.device_group_name}"]/profile-group/entry'
+            'device-group': './devices/entry/device-group/entry[@name="{device_group_name}"]/profile-group/entry'
         }
         base_xpath = self._get_base_xpath(base_xpath_dict)
         profile_groups = []
@@ -680,7 +691,7 @@ class XMLParser:
         base_xpath_dict = {
             'local': './devices/entry/vsys/entry/tag/entry',
             'shared': './shared/tag/entry',
-            'device-group': './devices/entry/device-group/entry[@name="{self.device_group_name}"]/tag/entry'
+            'device-group': './devices/entry/device-group/entry[@name="{device_group_name}"]/tag/entry'
         }
         base_xpath = self._get_base_xpath(base_xpath_dict)
         tags = []
@@ -701,7 +712,7 @@ class XMLParser:
         base_xpath_dict = {
             'local': './devices/entry/vsys/entry/address/entry',
             'shared': './shared/address/entry',
-            'device-group': f'./devices/entry/device-group/entry[@name="{self.device_group_name}"]/address/entry'
+            'device-group': './devices/entry/device-group/entry[@name="{device_group_name}"]/address/entry'
         }
         base_xpath = self._get_base_xpath(base_xpath_dict)
         addresses = []
@@ -731,7 +742,7 @@ class XMLParser:
         base_xpath_dict = {
             'local': './devices/entry/vsys/entry/address-group/entry',
             'shared': './shared/address-group/entry',
-            'device-group': f'./devices/entry/device-group/entry[@name="{self.device_group_name}"]/address-group/entry'
+            'device-group': './devices/entry/device-group/entry[@name="{device_group_name}"]/address-group/entry'
         }
         base_xpath = self._get_base_xpath(base_xpath_dict)
         address_groups = []
@@ -759,7 +770,7 @@ class XMLParser:
         base_xpath_dict = {
             'local': './devices/entry/vsys/entry/service/entry',
             'shared': './shared/service/entry',
-            'device-group': f'./devices/entry/device-group/entry[@name="{self.device_group_name}"]/service/entry'
+            'device-group': './devices/entry/device-group/entry[@name="{device_group_name}"]/service/entry'
         }
         base_xpath = self._get_base_xpath(base_xpath_dict)
         service_entries = []
@@ -800,7 +811,7 @@ class XMLParser:
         base_xpath_dict = {
             'local': './devices/entry/vsys/entry/service-group/entry',
             'shared': './shared/service-group/entry',
-            'device-group': f'./devices/entry/device-group/entry[@name="{self.device_group_name}"]/service-group/entry'
+            'device-group': './devices/entry/device-group/entry[@name="{device_group_name}"]/service-group/entry'
         }
         base_xpath = self._get_base_xpath(base_xpath_dict)
         service_groups = []
@@ -824,7 +835,7 @@ class XMLParser:
         base_xpath_dict = {
             'local': './devices/entry/vsys/entry/external-list/entry',
             'shared': './shared/external-list/entry',
-            'device-group': f'./devices/entry/device-group/entry[@name="{self.device_group_name}"]/external-list/entry'
+            'device-group': './devices/entry/device-group/entry[@name="{device_group_name}"]/external-list/entry'
         }
         base_xpath = self._get_base_xpath(base_xpath_dict)
         edl_entries = []
@@ -863,7 +874,7 @@ class XMLParser:
         base_xpath_dict = {
             'local': './devices/entry/vsys/entry/application-filter/entry',
             'shared': './shared/application-filter/entry',
-            'device-group': f'./devices/entry/device-group/entry[@name="{self.device_group_name}"]/application-filter/entry'
+            'device-group': './devices/entry/device-group/entry[@name="{device_group_name}"]/application-filter/entry'
         }
         base_xpath = self._get_base_xpath(base_xpath_dict)
         application_filters = []
@@ -900,7 +911,7 @@ class XMLParser:
         base_xpath_dict = {
             'local': './devices/entry/vsys/entry/application-group/entry',
             'shared': './shared/application-group/entry',
-            'device-group': f'./devices/entry/device-group/entry[@name="{self.device_group_name}"]/application-group/entry'
+            'device-group': './devices/entry/device-group/entry[@name="{device_group_name}"]/application-group/entry'
         }
         base_xpath = self._get_base_xpath(base_xpath_dict)
         application_groups = []
@@ -921,7 +932,7 @@ class XMLParser:
         base_xpath_dict = {
             'local': './devices/entry/vsys/entry/rulebase/application-override/rules/entry',
             'shared': './shared/pre-rulebase/application-override/rules/entry',
-            'device-group': f'./devices/entry/device-group/entry[@name="{self.device_group_name}"]/pre-rulebase/application-override/rules/entry'
+            'device-group': './devices/entry/device-group/entry[@name="{device_group_name}"]/pre-rulebase/application-override/rules/entry'
         }
         base_xpath = self._get_base_xpath(base_xpath_dict)
         app_override_rules = []
@@ -965,7 +976,7 @@ class XMLParser:
         base_xpath_dict = {
             'local': './devices/entry/vsys/entry/rulebase/application-override/rules/entry',
             'shared': './shared/post-rulebase/application-override/rules/entry',
-            'device-group': f'./devices/entry/device-group/entry[@name="{self.device_group_name}"]/post-rulebase/application-override/rules/entry'
+            'device-group': './devices/entry/device-group/entry[@name="{device_group_name}"]/post-rulebase/application-override/rules/entry'
         }
         base_xpath = self._get_base_xpath(base_xpath_dict)
         if self.config_type == 'local' or not base_xpath:
@@ -1011,7 +1022,7 @@ class XMLParser:
         base_xpath_dict = {
             'local': './devices/entry/vsys/entry/rulebase/security/rules/entry',
             'shared': './shared/pre-rulebase/security/rules/entry',
-            'device-group': f'./devices/entry/device-group/entry[@name="{self.device_group_name}"]/pre-rulebase/security/rules/entry'
+            'device-group': './devices/entry/device-group/entry[@name="{device_group_name}"]/pre-rulebase/security/rules/entry'
         }
         base_xpath = self._get_base_xpath(base_xpath_dict)
         security_rules = []
@@ -1070,7 +1081,7 @@ class XMLParser:
         base_xpath_dict = {
             'local': './devices/entry/vsys/entry/rulebase/security/rules/entry',
             'shared': './shared/post-rulebase/security/rules/entry',
-            'device-group': f'./devices/entry/device-group/entry[@name="{self.device_group_name}"]/post-rulebase/security/rules/entry'
+            'device-group': './devices/entry/device-group/entry[@name="{device_group_name}"]/post-rulebase/security/rules/entry'
         }
         base_xpath = self._get_base_xpath(base_xpath_dict)
         if self.config_type == 'local' or not base_xpath:
@@ -1131,7 +1142,7 @@ class XMLParser:
         base_xpath_dict = {
             'local': './devices/entry/vsys/entry/rulebase/decryption/rules/entry',
             'shared': './shared/pre-rulebase/decryption/rules/entry',
-            'device-group': f'./devices/entry/device-group/entry[@name="{self.device_group_name}"]/pre-rulebase/decryption/rules/entry'
+            'device-group': './devices/entry/device-group/entry[@name="{device_group_name}"]/pre-rulebase/decryption/rules/entry'
         }
         base_xpath = self._get_base_xpath(base_xpath_dict)
         decryption_rules = []
@@ -1198,7 +1209,7 @@ class XMLParser:
         base_xpath_dict = {
             'local': './devices/entry/vsys/entry/rulebase/decryption/rules/entry',
             'shared': './shared/post-rulebase/decryption/rules/entry',
-            'device-group': f'./devices/entry/device-group/entry[@name="{self.device_group_name}"]/post-rulebase/decryption/rules/entry'
+            'device-group': './devices/entry/device-group/entry[@name="{device_group_name}"]/post-rulebase/decryption/rules/entry'
         }
         base_xpath = self._get_base_xpath(base_xpath_dict)
         if self.config_type == 'local' or not base_xpath:
@@ -1267,7 +1278,7 @@ class XMLParser:
         base_xpath_dict = {
             'local': './devices/entry/vsys/entry/rulebase/nat/rules/entry',
             'shared': './shared/pre-rulebase/nat/rules/entry',
-            'device-group': f'./devices/entry/device-group/entry[@name="{self.device_group_name}"]/pre-rulebase/nat/rules/entry'
+            'device-group': './devices/entry/device-group/entry[@name="{device_group_name}"]/pre-rulebase/nat/rules/entry'
         }
         base_xpath = self._get_base_xpath(base_xpath_dict)
         nat_rules = []
@@ -1401,7 +1412,7 @@ class XMLParser:
     def _nat_post_rules_entries(self):
         base_xpath_dict = {
             'shared': './shared/post-rulebase/nat/rules/entry',
-            'device-group': f'./devices/entry/device-group/entry[@name="{self.device_group_name}"]/post-rulebase/nat/rules/entry'
+            'device-group': './devices/entry/device-group/entry[@name="{device_group_name}"]/post-rulebase/nat/rules/entry'
         }
         base_xpath = self._get_base_xpath(base_xpath_dict)
         if self.config_type == 'local' or not base_xpath:

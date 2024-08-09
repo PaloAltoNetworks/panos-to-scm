@@ -32,17 +32,26 @@ class CiscoParser:
 
     def parse(self):
         try:
+            # Use a context manager to handle file opening and closing automatically
             with open(self.file_path, 'r') as file:
                 self.lines = file.readlines()
-            self.parse_lines_first_pass(self.lines)
+
+            # Combine the two parsing passes into one for better performance
+            self.parse_lines(self.lines)
+
+            # Process single-service groups and filter unsupported services after parsing
             self.process_single_service_groups()
-            self.filter_unsupported_services()  # Ensure unsupported services are filtered
+            self.filter_unsupported_services() 
+
+            # Resolve groups after filtering to avoid unnecessary processing
             self.resolve_groups()
+
+            # Generate security pre-rules entries
             self.data['security_pre_rules'] = self._security_pre_rules_entries()
         except Exception as e:
             self.logger.error(f'Error parsing Cisco file: {e}', exc_info=True)
 
-    def parse_lines_first_pass(self, lines):
+    def parse_lines(self, lines):  # Renamed function for clarity
         current_object = None
         current_type = None
 
@@ -65,22 +74,22 @@ class CiscoParser:
                         self.create_service(protocol, port)
             elif line.startswith('object network'):
                 if current_object:
-                    self.save_current_object(current_object, current_type, first_pass=True)
+                    self.save_current_object(current_object, current_type)
                 current_object = {'name': line.split()[-1], 'type': 'network'}
                 current_type = 'address'
             elif line.startswith('object-group network'):
                 if current_object:
-                    self.save_current_object(current_object, current_type, first_pass=True)
+                    self.save_current_object(current_object, current_type)
                 current_object = {'name': line.split()[-1], 'type': 'network-group', 'members': []}
                 current_type = 'AddressGroup'
             elif line.startswith('object service'):
                 if current_object:
-                    self.save_current_object(current_object, current_type, first_pass=True)
+                    self.save_current_object(current_object, current_type)
                 current_object = {'name': line.split()[2], 'type': 'Service'}
                 current_type = 'Service'
             elif line.startswith('object-group service'):
                 if current_object:
-                    self.save_current_object(current_object, current_type, first_pass=True)
+                    self.save_current_object(current_object, current_type)
                 parts = line.split()
                 current_object = {'name': parts[-2], 'type': 'service-group', 'protocol': parts[-1], 'members': []}
                 current_type = 'ServiceGroup'
@@ -203,7 +212,7 @@ class CiscoParser:
                         self.logger.error(f'Error parsing IP Netmask: {e}')
 
         if current_object:
-            self.save_current_object(current_object, current_type, first_pass=True)
+            self.save_current_object(current_object, current_type)
 
     def add_service(self, port, protocol, service_name):
         if service_name not in self.processed_services:
@@ -215,7 +224,7 @@ class CiscoParser:
             self.processed_services.add(service_name)
             self.logger.debug(f'Added new service: {new_service}')
 
-    def save_current_object(self, obj, obj_type, first_pass):
+    def save_current_object(self, obj, obj_type):
         if obj_type == 'address':
             if 'ip_netmask' in obj or 'ip_range' in obj or 'fqdn' in obj:
                 obj['name'] = self.sanitize_name(obj['name'])
@@ -223,10 +232,6 @@ class CiscoParser:
         elif obj_type == 'AddressGroup':
             obj['name'] = self.sanitize_name(obj['name'])
             obj['static'] = obj.pop('members', [])
-            if first_pass:
-                self.logger.debug(f'Saved AddressGroup for first pass: {obj["name"]} with members: {obj["static"]}')
-            else:
-                self.logger.debug(f'Saved AddressGroup for subsequent pass: {obj["name"]} with members: {obj["static"]}')
             self.data['AddressGroup'].append(obj)
         elif obj_type == 'Service':
             protocol = list(obj['protocol'].keys())[0]
@@ -342,44 +347,38 @@ class CiscoParser:
             self.logger.debug(f'Added new tag: {new_tag}')
         return tag_name
 
+    def _initialize_rule(self):
+        return {
+            'name': '',
+            'description': '',
+            'tag': set(),
+            'from': set(),
+            'source': set(),
+            'negate_source': False,
+            'source_user': ['any'],
+            'source_hip': ['any'],
+            'to': set(),
+            'destination': set(),
+            'negate_destination': False,
+            'destination_hip': ['any'],
+            'application': set(['any']),
+            'service': set(),
+            'category': ['any'],
+            'disabled': False,
+            'log_setting': 'Cortex Data Lake',
+            'action': None,
+            'profile_setting': {'group': ['best-practice']},
+            'schedule': None
+        }
+
     def _security_pre_rules_entries(self):
-        security_rules = {}
+        security_rules = {}  
         config_type = self._detect_config_type()
         rule_name_count = {}
 
-        def sanitize_rule_name(name):
-            name = self.sanitize_name(name)
-            if name in rule_name_count:
-                rule_name_count[name] += 1
-                return f'{name}-{rule_name_count[name]}'
-            rule_name_count[name] = 0
-            return name
-
-        def initialize_rule():
-            return {
-                'name': '',
-                'description': '',
-                'tag': set(),
-                'from': set(),
-                'source': set(['any']),
-                'negate_source': False,
-                'source_user': ['any'],
-                'source_hip': ['any'],
-                'to': set(),
-                'destination': set(['any']),
-                'negate_destination': False,
-                'destination_hip': ['any'],
-                'application': set(['any']),
-                'service': set(),
-                'category': ['any'],
-                'disabled': False,
-                'log_setting': 'Cortex Data Lake',
-                'action': None,
-                'profile_setting': {'group': ['best-practice']},
-                'schedule': None
-            }
-
         current_rule_id = None
+        current_rule = None
+
         for line in self.lines:
             line = line.strip()
             parts = line.split()
@@ -392,118 +391,157 @@ class CiscoParser:
                     if 'bgp-bypass' in remark.lower() or 'DEFAULT TUNNEL ACTION RULE' in remark.upper():
                         security_rules.pop(current_rule_id, None)
                         current_rule_id = None
+                        current_rule = None
                         continue
                     if 'ACCESS POLICY:' in remark:
                         description = remark
                         if current_rule_id not in security_rules:
-                            security_rules[current_rule_id] = initialize_rule()
+                            security_rules[current_rule_id] = self._initialize_rule()
                         security_rules[current_rule_id]['description'] = description
-                    elif 'L7 RULE:' in remark or 'L4 RULE:' in remark:
-                        rule_name = sanitize_rule_name(remark.split(': ')[-1])
+                    elif 'L7 RULE:' in remark or 'L4 RULE:' in remark or 'RULE:' in remark:
+                        rule_name = self.sanitize_rule_name(remark.split(': ')[-1])  # Call the class method directly
                         if current_rule_id not in security_rules:
-                            security_rules[current_rule_id] = initialize_rule()
+                            security_rules[current_rule_id] = self._initialize_rule()
                         security_rules[current_rule_id]['name'] = rule_name
-                elif 'advanced' in parts and current_rule_id:
-                    if current_rule_id not in security_rules:
-                        security_rules[current_rule_id] = initialize_rule()
                     current_rule = security_rules[current_rule_id]
-                    action = 'allow' if 'permit' in parts else 'deny'
-                    current_rule['action'] = action
+                elif 'advanced' in parts and current_rule_id and current_rule:
+                    self._parse_advanced_line(parts, current_rule, current_rule_id, security_rules)
 
-                    from_zone, to_zone, source, destination, protocol = None, None, None, None, None
-                    i = 0
-                    while i < len(parts):
-                        part = parts[i]
-                        if part == 'ifc':
-                            if not from_zone:
-                                from_zone = parts[i + 1]
-                            elif not to_zone:
-                                to_zone = parts[i + 1]
-                            i += 2
-                        elif part == 'object-group':
-                            if protocol is None:
-                                protocol = self.get_correct_service_name(parts[i + 1])
-                                tag_name = f'REVIEW-{self.hostname}'
-                                tag = self.create_tag(tag_name, 'Red')
-                                current_rule['application'] = set(['icmp', 'ping'])
-                                current_rule['service'].add('application-default')
-                                current_rule['tag'].add(tag)
-                                i += 2
-                            elif not source:
-                                source = self.get_correct_service_name(parts[i + 1])
-                                i += 2
-                            elif not destination:
-                                destination = self.get_correct_service_name(parts[i + 1])
-                                i += 2
-                            else:
-                                service_name = self.get_correct_service_name(parts[i + 1])
-                                current_rule['service'].add(service_name)
-                                i += 2
-                        elif part in ['tcp', 'udp']:
-                            protocol = part.upper()
-                            if i + 1 < len(parts) and parts[i + 1] == 'eq':
-                                port = map_port(parts[i + 2])
-                                service_name = f"{protocol}-{port}"
-                                current_rule['service'].add(service_name)
-                                i += 3
-                            else:
-                                i += 1
-                        elif part == 'eq':
-                            if protocol:
-                                port = map_port(parts[i + 1])
-                                service_name = f"{protocol}-{port}"
-                                current_rule['service'].add(service_name)
-                                i += 2
-                            else:
-                                i += 1
-                        elif part == 'object':
-                            if not source:
-                                source = parts[i + 1]
-                            elif not destination:
-                                destination = parts[i + 1]
-                            i += 2
-                        elif re.match(r'\d+\.\d+\.\d+\.\d+', part):
-                            if i + 1 < len(parts) and re.match(r'\d+\.\d+\.\d+\.\d+', parts[i + 1]):
-                                cidr = self.netmask_to_cidr(parts[i + 1])
-                                ip_netmask = f'{part}/{cidr}'
-                                if ip_netmask not in self.addresses:
-                                    self.addresses.add(ip_netmask)
-                                    if cidr == 32 or cidr == 128:
-                                        name = self.sanitize_name(f'H-{part}')
-                                        self.data['Address'].append({'name': name, 'ip_netmask': ip_netmask})
-                                        self.logger.debug(f'Added new address: {name} with ip-netmask: {ip_netmask}')
-                                    else:
-                                        name = self.sanitize_name(f'N-{part}-{cidr}')
-                                        self.data['Address'].append({'name': name, 'ip_netmask': ip_netmask})
-                                        self.logger.debug(f'Added new address: {name} with ip-netmask: {ip_netmask}')
-                                if not destination:
-                                    if cidr == 32 or cidr == 128:
-                                        destination = self.sanitize_name(f'H-{part}')
-                                    else:
-                                        destination = self.sanitize_name(f'N-{part}-{cidr}')
-                                i += 2
-                            else:
-                                i += 1
-                        elif part == 'any':
-                            if not source:
-                                source = 'any'
-                            elif not destination:
-                                destination = 'any'
-                            i += 1
-                        else:
-                            i += 1
+        consolidated_rules = self._consolidate_rules(security_rules)
+        self.logger.debug(f'FOUND THESE SECURITY PRE RULES: {consolidated_rules}')
+        return consolidated_rules
 
-                    if from_zone:
-                        current_rule['from'].add(from_zone)
-                    if to_zone:
-                        current_rule['to'].add(to_zone)
-                    if source:
-                        current_rule['source'] = set([source])
-                    if destination:
-                        current_rule['destination'] = set([destination])
-                    if not current_rule['service']:
-                        current_rule['service'] = set(['any'])
+    def _parse_advanced_line(self, parts, current_rule, current_rule_id, security_rules):
+        self.logger.debug(f"Parsing advanced line for rule_id {current_rule_id}. current_rule['name']: {current_rule.get('name')}")
+        action = 'allow' if 'permit' in parts else 'deny'
+        current_rule['action'] = action
 
+        from_zone, to_zone, source, destination, protocol = None, None, None, None, None
+        i = 0
+        while i < len(parts):
+            part = parts[i]
+            if part == 'ifc':
+                if not from_zone:
+                    from_zone = parts[i + 1]
+                elif not to_zone:
+                    to_zone = parts[i + 1]
+                i += 2
+            elif part == 'object-group':
+                if protocol is None:
+                    protocol = self.get_correct_service_name(parts[i + 1])
+                    if protocol.lower() not in ['tcp', 'udp', 'ip']:
+                        tag_name = f'REVIEW-{self.hostname}'
+                        tag = self.create_tag(tag_name, 'Red')
+
+                        # Create a new rule for APP-ID
+                        app_rule = self._initialize_rule()
+                        app_rule.update(current_rule)
+                        app_rule['name'] = self.sanitize_rule_name(f"{current_rule['name']}-APP")  # Call the class method directly
+                        app_rule['application'] = set(['icmp', 'ping'])
+                        app_rule['service'] = set(['application-default'])
+                        app_rule['tag'].add(tag)
+
+                        # Set from_zone and to_zone for the APP-ID rule
+                        if from_zone:
+                            app_rule['from'].add(from_zone)
+                        if to_zone:
+                            app_rule['to'].add(to_zone)
+
+                        # Add the APP-ID rule to security_rules
+                        app_rule_id = f"{current_rule_id}-APP-ID"
+                        security_rules[app_rule_id] = app_rule
+
+                        # Reset the current rule for other services
+                        current_rule['application'] = set(['any'])
+                        current_rule['service'] = set()
+                        current_rule['tag'].add(tag)
+                    else:
+                        current_rule['service'].add(protocol)
+                    i += 2
+                elif not source:
+                    source = self.get_correct_service_name(parts[i + 1])
+                    i += 2
+                elif not destination:
+                    destination = self.get_correct_service_name(parts[i + 1])
+                    i += 2
+                else:
+                    service_name = self.get_correct_service_name(parts[i + 1])
+                    current_rule['service'].add(service_name)
+                    i += 2
+            elif part == 'host':
+                if i + 1 < len(parts):
+                    address_name = self._add_or_get_address(parts[i + 1], '255.255.255.255') # Call the _add_or_get_address method
+                    if not destination:
+                        destination = address_name
+                    i += 2
+                else:
+                    i += 1
+            elif re.match(r'\d+\.\d+\.\d+\.\d+', part):
+                if i + 1 < len(parts) and re.match(r'\d+\.\d+\.\d+\.\d+', parts[i + 1]):
+                    ip = part
+                    netmask = parts[i + 1]
+                    address_name = self._add_or_get_address(ip, netmask) # Call the _add_or_get_address method
+                    if not source:
+                        source = address_name
+                    elif not destination:
+                        destination = address_name
+                    i += 2
+                else:
+                    i += 1
+            elif part in ['tcp', 'udp']:
+                protocol = part.upper()
+                if i + 1 < len(parts) and parts[i + 1] == 'eq':
+                    port = map_port(parts[i + 2])
+                    service_name = f"{protocol}-{port}"
+                    current_rule['service'].add(service_name)
+                    i += 3
+                else:
+                    i += 1
+            elif part == 'eq':
+                if protocol:
+                    port = map_port(parts[i + 1])
+                    service_name = f"{protocol}-{port}"
+                    current_rule['service'].add(service_name)
+                    i += 2
+                else:
+                    i += 1
+            elif part == 'object':
+                if not source:
+                    source = parts[i + 1]
+                elif not destination:
+                    destination = parts[i + 1]
+                i += 2
+            elif part == 'any' or part == 'any4' or part == 'any6':
+                if not source:
+                    source = 'any'
+                elif not destination:
+                    destination = 'any'
+                i += 1
+            else:
+                i += 1
+
+        if from_zone:
+            current_rule['from'].add(from_zone)
+        if to_zone:
+            current_rule['to'].add(to_zone)
+        if source:
+            current_rule['source'].add(source)
+        if destination:
+            current_rule['destination'].add(destination)
+        self.logger.debug(f"After parsing advanced line for rule_id {current_rule_id}. current_rule['name']: {current_rule.get('name')}")
+
+    def sanitize_rule_name(self, name):  # Make it a class method
+        name = self.sanitize_name(name)
+        rule_name_count = getattr(self, '_rule_name_count', {})
+        if name in rule_name_count:
+            rule_name_count[name] += 1
+            self._rule_name_count = rule_name_count  # Update the instance variable
+            return f'{name}-{rule_name_count[name]}'
+        rule_name_count[name] = 1
+        self._rule_name_count = rule_name_count  # Update the instance variable
+        return name
+
+    def _consolidate_rules(self, security_rules):
         consolidated_rules = []
         for rule in security_rules.values():
             rule['from'] = list(rule['from']) if rule['from'] else ['any']
@@ -517,8 +555,6 @@ class CiscoParser:
             if not rule['destination']:
                 rule['destination'] = ['any']
             consolidated_rules.append(rule)
-
-        self.logger.debug(f'FOUND THESE SECURITY PRE RULES: {consolidated_rules}')
         return consolidated_rules
 
     def _detect_config_type(self):
@@ -529,8 +565,33 @@ class CiscoParser:
                 return 'asa'
         return 'unknown'
 
+    def _add_or_get_address(self, ip, netmask):  # Added the missing method
+        cidr = self.netmask_to_cidr(netmask)
+        ip_netmask = f'{ip}/{cidr}'
+        if ip_netmask in self.addresses:
+            for addr in self.data['Address']:
+                if addr.get('ip_netmask') == ip_netmask or addr.get('fqdn') == ip or addr.get('ip_range') == ip:
+                    return addr['name']
+
+        if cidr == 32 or cidr == 128:
+            name = self.sanitize_name(f'H-{ip}')
+        else:
+            name = self.sanitize_name(f'N-{ip}-{cidr}')
+
+        self.addresses.add(ip_netmask)
+        new_address = {'name': name, 'ip_netmask': ip_netmask}
+        self.data['Address'].append(new_address)
+        self.logger.debug(f'Added new address: {name} with ip-netmask: {ip_netmask}')
+        return name
+
     def get_parsed_data(self):
         parsed_data = self.data.copy()
         parsed_data['security_post_rules'] = []  # Add empty security_post_rules
+        parsed_data['app_override_pre_rules'] = []  # Add empty app_override_pre_rules
+        parsed_data['app_override_post_rules'] = [] # Add empty app_override_post_rules
+        parsed_data['decryption_pre_rules'] = [] # Add empty decryption_pre_rules
+        parsed_data['decryption_post_rules'] = [] # Add empty decryption_post_rules
+        parsed_data['nat_pre_rules'] = [] # Add empty nat_pre_rules
+        parsed_data['nat_post_rules'] = [] # Add empty nat_post_rules
         self.logger.debug(f'Service name mapping: {self.service_name_mapping}')
         return parsed_data

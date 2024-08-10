@@ -4,7 +4,7 @@ import time
 import os  # Import os module
 from config import ConfigurationManager
 from parse.parse_panos import XMLParser
-from parse.parse_cisco2 import CiscoParser  # Cisco Parser added
+from parse.parse_cisco import CiscoParser  # Cisco Parser added
 from api import PanApiSession
 from scm import PanApiHandler
 from scm.process import Processor, SCMObjectManager

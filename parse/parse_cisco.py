@@ -370,54 +370,195 @@ class CiscoParser:
         }
 
     def _security_pre_rules_entries(self):
-        security_rules = {} #Initialize security_rules as a dictionary
-        config_type = self._detect_config_type() # Detect the config type
+        security_rules = {}
+        config_type = self._detect_config_type()
 
-        current_rule_id = None # Initialize current_rule_id as None
-        current_rule = None # Initialize current_rule as None
-        rule_count = 0 # Initialize rule_count as 0
+        current_rule_id = None
+        current_rule = None
+        rule_count = 0
 
-        for line in self.lines: # Loop through the lines
-            line = line.strip() # Strip the line
-            parts = line.split() # Split the line
+        for line in self.lines:
+            line = line.strip()
+            parts = line.split()
 
-            if config_type == 'firepower' and line.startswith('access-list'): # Check if the config type is firepower and the line starts with 'access-list'
-                if 'remark' in parts: # Check if 'remark' is in parts
-                    rule_id_index = parts.index('rule-id') + 1 # Get the index of 'rule-id' in parts
-                    current_rule_id = parts[rule_id_index] # Get the rule id
-                    remark = ' '.join(parts[parts.index('remark') + 2:]) # Get the remark
-                    if 'bgp-bypass' in remark.lower() or 'DEFAULT TUNNEL ACTION RULE' in remark.upper(): # Check if 'bgp-bypass' is in remark or 'DEFAULT TUNNEL ACTION RULE' is in remark
-                        security_rules.pop(current_rule_id, None) # Remove the current rule id from security_rules
+            if config_type == 'firepower' and line.startswith('access-list'):
+                if 'remark' in parts:
+                    rule_id_index = parts.index('rule-id') + 1
+                    current_rule_id = parts[rule_id_index]
+                    remark = ' '.join(parts[parts.index('remark') + 2:])
+                    if 'bgp-bypass' in remark.lower() or 'DEFAULT TUNNEL ACTION RULE' in remark.upper():
+                        security_rules.pop(current_rule_id, None)
                         current_rule_id = None
                         current_rule = None
-                        continue # Continue to the next iteration
-                    if 'ACCESS POLICY:' in remark: # Check if 'ACCESS POLICY:' is in remark
-                        description = remark # Set the description as remark
-                        if current_rule_id not in security_rules: # Check if current_rule_id is not in security_rules
-                            security_rules[current_rule_id] = self._initialize_rule() # Initialize the current rule id as a new rule
-                        security_rules[current_rule_id]['description'] = description # Set the description of the current rule id
-                    elif 'L7 RULE:' in remark or 'L4 RULE:' in remark or 'RULE:' in remark: # Check if 'L7 RULE:' is in remark or 'L4 RULE:' is in remark or 'RULE:' is in remark
-                        rule_name = self._sanitize_rule_name(remark.split(': ')[-1]) # Call the class method directly
-                        if current_rule_id not in security_rules: # Check if current_rule_id is not in security_rules
-                            security_rules[current_rule_id] = self._initialize_rule() # Initialize the current rule id as a new rule
-                        security_rules[current_rule_id]['name'] = rule_name # Set the name of the current rule id
-                    current_rule = security_rules[current_rule_id] # Set the current rule as the current rule id
-                elif 'advanced' in parts and current_rule_id and current_rule:  # Check if 'advanced' is in parts and current_rule_id and current_rule
-                    self._parse_ngfw_acl(parts, current_rule, current_rule_id, security_rules) # Call the _parse_ngfw_acl method
+                        continue
+                    if 'ACCESS POLICY:' in remark:
+                        description = remark
+                        if current_rule_id not in security_rules:
+                            security_rules[current_rule_id] = self._initialize_rule()
+                        security_rules[current_rule_id]['description'] = description
+                    elif 'L7 RULE:' in remark or 'L4 RULE:' in remark or 'RULE:' in remark:
+                        rule_name = self._sanitize_rule_name(remark.split(': ')[-1])
+                        if current_rule_id not in security_rules:
+                            security_rules[current_rule_id] = self._initialize_rule()
+                        security_rules[current_rule_id]['name'] = rule_name
+                    current_rule = security_rules[current_rule_id]
+                elif 'advanced' in parts and current_rule_id and current_rule:
+                    self._parse_ngfw_acl(parts, current_rule, current_rule_id, security_rules)
             
-            elif config_type == 'asa' and line.startswith('access-list'): # Check if the config type is asa and the line starts with 'access-list'
+            elif config_type == 'asa' and line.startswith('access-list'):
                 if 'extended' in parts:
                     rule_count += 1
                     rule_name = f'Rule-{rule_count}'
-                    self._parse_asa_acl(parts, rule_name)
+                    current_rule = security_rules[rule_name] = self._initialize_rule()
+                    current_rule['name'] = rule_name
+                    description = (f'Rule {rule_count} from ASA configuration')
+                    current_rule['description'] = description
+                    self._parse_asa_acl(parts, current_rule, rule_name, security_rules)
 
+        consolidated_rules = self._consolidate_rules(security_rules)
+        self.logger.debug(f'FOUND THESE SECURITY PRE RULES: {consolidated_rules}')
+        return consolidated_rules
 
-        consolidated_rules = self._consolidate_rules(security_rules) # Call the _consolidate_rules method
-        self.logger.debug(f'FOUND THESE SECURITY PRE RULES: {consolidated_rules}')  # Log the consolidated rules
-        return consolidated_rules # Return the consolidated rules
+    def _parse_asa_acl(self, parts, current_rule, rule_name, security_rules):
+        self.logger.debug(f"Parsing ASA line for rule_name {rule_name}")
+        action = 'allow' if 'permit' in parts else 'deny'
+        current_rule['action'] = action
 
-    def _parse_asa_acl(self, parts, rule_name):
-        self.logger.debug(f"Parsing ASA line for rule_name {rule_name}.") # Log the rule name
+        from_zone, to_zone, source, destination, protocol = None, None, None, None, None
+        i = 0
+        while i < len(parts):
+            part = parts[i]
+            
+            if part == 'object-group':
+                if protocol is None:
+                    protocol = self._get_correct_obj_name(parts[i + 1])
+                    if protocol.lower() not in ['tcp', 'udp', 'ip']:
+                        tag_name = f'REVIEW-{self.hostname}'
+                        tag = self._create_tag(tag_name, 'Red')
+
+                        # Create a new rule for APP-ID
+                        app_rule = self._initialize_rule()
+                        app_rule.update(current_rule)
+                        app_rule['name'] = self._sanitize_rule_name(f"{current_rule['name']}-APP")
+                        app_rule['application'] = set(['icmp', 'ping'])
+                        app_rule['service'] = set(['application-default'])
+                        app_rule['tag'].add(tag)
+
+                        # Set from_zone and to_zone for the APP-ID rule
+                        if from_zone:
+                            app_rule['from'].add(from_zone)
+                        if to_zone:
+                            app_rule['to'].add(to_zone)
+
+                        # Add the APP-ID rule to security_rules
+                        app_rule_id = f"{rule_name}-APP-ID"
+                        security_rules[app_rule_id] = app_rule
+
+                        # Reset the current rule for other services
+                        current_rule['application'] = set(['any'])
+                        current_rule['service'] = set()
+                        current_rule['tag'].add(tag)
+                    else:
+                        current_rule['service'].add(protocol)
+                    i += 2
+                elif not source:
+                    source = self._get_correct_obj_name(parts[i + 1])
+                    i += 2
+                elif not destination:
+                    destination = self._get_correct_obj_name(parts[i + 1])
+                    i += 2
+                else:
+                    service_name = self._get_correct_obj_name(parts[i + 1])
+                    current_rule['service'].add(service_name)
+                    i += 2
+            elif part == 'host':
+                if i + 1 < len(parts):
+                    address_name = self._add_or_get_address(parts[i + 1], '255.255.255.255')
+                    if not destination:
+                        destination = address_name
+                    i += 2
+                else:
+                    i += 1
+            elif re.match(r'\d+\.\d+\.\d+\.\d+', part):
+                if i + 1 < len(parts) and re.match(r'\d+\.\d+\.\d+\.\d+', parts[i + 1]):
+                    ip = part
+                    netmask = parts[i + 1]
+                    address_name = self._add_or_get_address(ip, netmask)
+                    if not source:
+                        source = address_name
+                    elif not destination:
+                        destination = address_name
+                    i += 2
+                else:
+                    i += 1
+            elif part in ['tcp', 'udp']:
+                protocol = part.upper()
+                if i + 1 < len(parts) and parts[i + 1] == 'eq':
+                    port = map_port(parts[i + 2])
+                    service_name = f"{protocol}-{port}"
+                    current_rule['service'].add(service_name)
+                    i += 3
+                else:
+                    i += 1
+            elif part == 'eq':
+                if protocol:
+                    port = map_port(parts[i + 1])
+                    service_name = f"{protocol}-{port}"
+                    current_rule['service'].add(service_name)
+                    i += 2
+                else:
+                    i += 1
+            elif part == 'object':
+                if not source:
+                    source = parts[i + 1]
+                elif not destination:
+                    destination = parts[i + 1]
+                i += 2
+            elif part in ['any', 'any4', 'any6']:
+                if not source:
+                    source = 'any'
+                elif not destination:
+                    destination = 'any'
+                i += 1
+            else:
+                i += 1
+
+        # Set from_zone based on the ACL name
+        acl_name = parts[1]  # Assuming the ACL name is the second part of the line
+        from_zone = self._get_zone_from_acl(acl_name)
+        current_rule['from'].add(from_zone)
+
+        # Set to_zone as 'any'
+        current_rule['to'].add('any')
+
+        if source:
+            current_rule['source'].add(source)
+        if destination:
+            current_rule['destination'].add(destination)
+        
+        self.logger.debug(f"After parsing ASA line for rule_name {rule_name}. current_rule: {current_rule}")
+
+    def _get_zone_from_acl(self, acl_name):
+        # Dictionary to store the mapping of ACL names to zones
+        self.acl_to_zone_map = getattr(self, 'acl_to_zone_map', {})
+
+        # If the mapping is already in the dictionary, return it
+        if acl_name in self.acl_to_zone_map:
+            return self.acl_to_zone_map[acl_name]
+
+        # If not, we need to parse the configuration to find the mapping
+        for line in self.lines:
+            if line.startswith('access-group'):
+                parts = line.split()
+                if len(parts) >= 5 and parts[1] == acl_name and parts[2] == 'in' and parts[3] == 'interface':
+                    zone = parts[4]
+                    self.acl_to_zone_map[acl_name] = zone
+                    return zone
+
+        # If we couldn't find a mapping, use the ACL name as the zone
+        self.logger.warning(f"Couldn't find zone mapping for ACL '{acl_name}'. Using ACL name as zone.")
+        self.acl_to_zone_map[acl_name] = acl_name
+        return acl_name
 
     def _parse_ngfw_acl(self, parts, current_rule, current_rule_id, security_rules):
         self.logger.debug(f"Parsing advanced line for rule_id {current_rule_id}. current_rule['name']: {current_rule.get('name')}") # Log the current rule id and name

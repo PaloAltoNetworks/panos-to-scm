@@ -89,8 +89,41 @@ class CiscoParser:
                 if current_object:
                     self._save_current_object(current_object, current_type)
                 parts = line.split()
-                current_object = {'name': parts[-2], 'type': 'service-group', 'protocol': parts[-1], 'members': []}
+
+                # Determine if protocol is present on the same line (Firepower) or not (ASA)
+                if len(parts) >= 4 and parts[-1] in ['tcp', 'udp', 'ip']:
+                    # Firepower format
+                    current_object = {'name': parts[-2], 'type': 'service-group', 'protocol': parts[-1], 'members': []}
+                else:
+                    # ASA format (protocol might be on the next line)
+                    current_object = {'name': parts[-1], 'type': 'service-group', 'protocol': None, 'members': []}
+                
                 current_type = 'ServiceGroup'
+            elif line.startswith('service-object'):
+                if current_object and current_object['type'] == 'service-group':
+                    parts = line.split()
+                    if parts[1] == 'object':  # Handle the case where service-object refers to another object
+                        obj_name = self._sanitize_name(parts[2])
+                        current_object['members'].append(obj_name)
+                        self.service_name_mapping[current_object['name']] = obj_name
+                    elif len(parts) >= 5:  # Handle ASA case where protocol is not in first line
+                        protocol = parts[1].lower()
+                        if parts[2] == 'destination' and parts[3] == 'eq':
+                            port = map_port(parts[4])
+                            service_name = self._sanitize_name(f'{protocol.upper()}-{port}')
+                            if service_name not in self.processed_services:
+                                self._add_service(port, protocol, service_name)
+                            current_object['members'].append(service_name)
+                            self.service_name_mapping[current_object['name']] = service_name
+                    elif current_object['protocol']:  # Handle Firepower case where protocol is in the first line
+                        protocol = current_object['protocol'].lower()
+                        if len(parts) >= 4 and parts[1] == 'destination' and parts[2] == 'eq':
+                            port = map_port(parts[3])
+                            service_name = self._sanitize_name(f'{protocol.upper()}-{port}')
+                            if service_name not in self.processed_services:
+                                self._add_service(port, protocol, service_name)
+                            current_object['members'].append(service_name)
+                            self.service_name_mapping[current_object['name']] = service_name
             elif line.startswith('description'):
                 if current_object:
                     current_object['description'] = line.split(' ', 1)[1]
@@ -128,7 +161,6 @@ class CiscoParser:
                     elif parts[1] == 'host':
                         ip_netmask = parts[2]
                         name = self._sanitize_name(f'H-{ip_netmask}')
-                        # self.logger.warning(f'Network-object {name} without netmask: {ip_netmask}')
                         if ip_netmask not in self.addresses:
                             self.addresses.add(ip_netmask)
                             self.data['Address'].append({'name': name, 'ip_netmask': ip_netmask})

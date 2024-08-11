@@ -63,6 +63,8 @@ def map_port(port):
         'sip-tls': '5061',
         'rtsp': '554',
         'bgp': '179',
+        'sqlnet': '1521',
+        'lpd': '515',
         # Add other mappings as needed
     }
     return port_mapping.get(port, port)

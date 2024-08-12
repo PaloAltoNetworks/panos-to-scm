@@ -87,39 +87,41 @@ class CiscoParser:
                 if current_object:
                     self._save_current_object(current_object, current_type)
                 parts = line.split()
-
-                # Determine if protocol is present on the same line (Firepower) or not (ASA)
+                # Firepower format
                 if len(parts) >= 4 and parts[-1] in ['tcp', 'udp', 'ip']:
-                    # Firepower format
                     current_object = {'name': parts[-2], 'type': 'service-group', 'protocol': parts[-1], 'members': []}
                 else:
                     # ASA format (protocol might be on the next line)
-                    current_object = {'name': parts[-1], 'type': 'service-group', 'protocol': None, 'members': []}
-                
+                    current_object = {'name': parts[-1], 'type': 'service-group', 'protocol': None, 'members': []}                
                 current_type = 'ServiceGroup'
-
             elif line.startswith('service-object'):
                 if current_object and current_object['type'] == 'service-group':
                     parts = line.split()
                     if parts[1] == 'object':  # Handle the case where service-object refers to another object
                         obj_name = self._sanitize_name(parts[2])
                         current_object['members'].append(obj_name)
-                    elif len(parts) >= 5:  # Handle ASA case where protocol is not in first line
-                        protocol = parts[1].upper()
-                        if parts[2] == 'destination' and parts[3] == 'eq':
-                            port = map_port(parts[4])
-                            service_name = self._sanitize_name(f'{protocol}-{port}')
-                            if service_name not in self.processed_services:
-                                self._add_service(port, protocol.lower(), service_name)
-                            current_object['members'].append(service_name)
-                    elif current_object['protocol']:  # Handle Firepower case where protocol is in the first line
-                        protocol = current_object['protocol'].upper()
-                        if len(parts) >= 4 and parts[1] == 'destination' and parts[2] == 'eq':
-                            port = map_port(parts[3])
-                            service_name = self._sanitize_name(f'{protocol}-{port}')
-                            if service_name not in self.processed_services:
-                                self._add_service(port, protocol.lower(), service_name)
-                            current_object['members'].append(service_name)
+                    else:
+                        protocols = []
+                        if parts[1] == 'tcp-udp':
+                            protocols = ['tcp', 'udp']
+                        else:
+                            protocols = [parts[1]]
+                        if 'destination' in parts and 'eq' in parts:
+                            port = map_port(parts[parts.index('eq') + 1])
+                            for protocol in protocols:
+                                service_name = self._sanitize_name(f'{protocol.upper()}-{port}')
+                                if service_name not in self.processed_services:
+                                    self._add_service(port, protocol, service_name)
+                                current_object['members'].append(service_name)
+                        elif 'destination' in parts and 'range' in parts:
+                            start_port = map_port(parts[parts.index('range') + 1])
+                            end_port = map_port(parts[parts.index('range') + 2])
+                            port_range = f'{start_port}-{end_port}'
+                            for protocol in protocols:
+                                service_name = self._sanitize_name(f'{protocol.upper()}-{port_range}')
+                                if service_name not in self.processed_services:
+                                    self._add_service(port_range, protocol, service_name)
+                                current_object['members'].append(service_name)
             elif line.startswith('description'):
                 if current_object:
                     current_object['description'] = line.split(' ', 1)[1]
@@ -197,7 +199,6 @@ class CiscoParser:
                     if service_name not in self.processed_services:
                         self._add_service(port, current_object['protocol'], service_name)
                     current_object['members'].append(service_name)
-                    self.service_name_mapping[current_object['name']] = service_name
             elif line.startswith('group-object'):
                 if current_object:
                     obj_name = self._sanitize_name(line.split()[-1])
@@ -274,13 +275,13 @@ class CiscoParser:
         obj['members'] = list(set([self._get_correct_obj_name(member) for member in obj['members']]))
         
         if len(obj['members']) == 1:
-            single_member = obj['members'][0]
-            self.service_name_mapping[obj['name']] = single_member
+            # For single-member groups, set up the mapping
+            self.service_name_mapping[obj['name']] = obj['members'][0]
+            self.logger.debug(f"Single-member service group {obj['name']} mapped to {obj['members'][0]}")
         else:
-            # For multi-member groups, map the group name to itself
-            self.service_name_mapping[obj['name']] = obj['name']
-        
-        self.data['ServiceGroup'].append(obj)
+            # For multi-member groups, we keep the group but don't add to service_name_mapping
+            self.data['ServiceGroup'].append(obj)
+            self.logger.debug(f"Added multi-member service group: {obj['name']} with members {obj['members']}")
 
     def _get_correct_obj_name(self, member):
         return self.service_name_mapping.get(member, member)
@@ -327,7 +328,15 @@ class CiscoParser:
         self.data['Service'] = filtered_services
 
         # Ensure service_name_mapping does not contain unsupported services
-        self.service_name_mapping = {k: v for k, v in self.service_name_mapping.items() if v not in self.unsupported_services}
+        filtered_mapping = {}
+        for k, v in self.service_name_mapping.items():
+            if isinstance(v, list):
+                filtered_v = [service for service in v if service not in self.unsupported_services]
+                if filtered_v:
+                    filtered_mapping[k] = filtered_v
+            elif v not in self.unsupported_services:
+                filtered_mapping[k] = v
+        self.service_name_mapping = filtered_mapping
 
     def _netmask_to_cidr(self, netmask):
         return sum([bin(int(x)).count('1') for x in netmask.split('.')])
@@ -368,6 +377,28 @@ class CiscoParser:
             self.processed_tags.add(tag_name)
             self.logger.debug(f'Added new tag: {new_tag}')
         return tag_name
+
+    def _get_zone_from_acl(self, acl_name):
+        # Dictionary to store the mapping of ACL names to zones
+        self.acl_to_zone_map = getattr(self, 'acl_to_zone_map', {})
+
+        # If the mapping is already in the dictionary, return it
+        if acl_name in self.acl_to_zone_map:
+            return self.acl_to_zone_map[acl_name]
+
+        # If not, we need to parse the configuration to find the mapping
+        for line in self.lines:
+            if line.startswith('access-group'):
+                parts = line.split()
+                if len(parts) >= 5 and parts[1] == acl_name and parts[2] == 'in' and parts[3] == 'interface':
+                    zone = parts[4]
+                    self.acl_to_zone_map[acl_name] = zone
+                    return zone
+
+        # If we couldn't find a mapping, use the ACL name as the zone
+        self.logger.warning(f"Couldn't find zone mapping for ACL '{acl_name}'. Using ACL name as zone.")
+        self.acl_to_zone_map[acl_name] = acl_name
+        return acl_name
 
     def _initialize_rule(self):
         return {
@@ -464,7 +495,8 @@ class CiscoParser:
             if part == 'object-group':
                 obj_name = self._get_correct_obj_name(parts[i + 1])
                 if service is None and protocol is None:
-                    service = self._get_service_object(obj_name)
+                    # Keep the original service group name
+                    service = obj_name
                 elif source is None:
                     source = obj_name
                 elif destination is None:
@@ -489,7 +521,7 @@ class CiscoParser:
                 else:
                     i += 1
             elif part == 'object':
-                obj_name = parts[i + 1]
+                obj_name = self._get_correct_obj_name(parts[i + 1])
                 if source is None:
                     source = obj_name
                 elif destination is None:
@@ -510,7 +542,14 @@ class CiscoParser:
             current_rule['destination'].add(destination)
         
         if service:
-            current_rule['service'].add(service)
+            self.logger.debug(f"Service before parsing: {service}")
+            if isinstance(service, list):
+                # If service is already a list, add each item individually
+                for s in service:
+                    current_rule['service'].add(s)
+            else:
+                # If it's a single service or group name, add it directly
+                current_rule['service'].add(service)
         elif protocol == 'IP':
             current_rule['service'].add('any')
         
@@ -519,44 +558,6 @@ class CiscoParser:
             current_rule['service'].add('any')
 
         self.logger.debug(f"After parsing ASA line for rule_name {rule_name}. current_rule: {current_rule}")
-
-    def _get_service_object(self, name):
-        for service_group in self.data['ServiceGroup']:
-            if service_group['name'] == name:
-                if len(service_group['members']) > 1:
-                    return name  # Return the group name for multi-member groups
-                elif len(service_group['members']) == 1:
-                    return service_group['members'][0]  # Return the single member
-        
-        service = next((s for s in self.data['Service'] if s['name'] == name), None)
-        if service:
-            protocol = list(service['protocol'].keys())[0]
-            port = service['protocol'][protocol]['port']
-            return f"{protocol.upper()}-{port}"
-        
-        return self.service_name_mapping.get(name, name)
-
-    def _get_zone_from_acl(self, acl_name):
-        # Dictionary to store the mapping of ACL names to zones
-        self.acl_to_zone_map = getattr(self, 'acl_to_zone_map', {})
-
-        # If the mapping is already in the dictionary, return it
-        if acl_name in self.acl_to_zone_map:
-            return self.acl_to_zone_map[acl_name]
-
-        # If not, we need to parse the configuration to find the mapping
-        for line in self.lines:
-            if line.startswith('access-group'):
-                parts = line.split()
-                if len(parts) >= 5 and parts[1] == acl_name and parts[2] == 'in' and parts[3] == 'interface':
-                    zone = parts[4]
-                    self.acl_to_zone_map[acl_name] = zone
-                    return zone
-
-        # If we couldn't find a mapping, use the ACL name as the zone
-        self.logger.warning(f"Couldn't find zone mapping for ACL '{acl_name}'. Using ACL name as zone.")
-        self.acl_to_zone_map[acl_name] = acl_name
-        return acl_name
 
     def _parse_ngfw_acl(self, parts, current_rule, current_rule_id, security_rules):
         self.logger.debug(f"Parsing advanced line for rule_id {current_rule_id}. current_rule['name']: {current_rule.get('name')}") # Log the current rule id and name

@@ -11,6 +11,8 @@ def map_port(port):
         'syslog': '514',
         'ftp': '21',
         'tftp': '69',
+        'dhcp': '67',
+        'tacacs': '49',
         'dns': '53',
         'smtp': '25',
         'pop3': '110',
@@ -61,6 +63,19 @@ def map_port(port):
         'sip-tls': '5061',
         'rtsp': '554',
         'bgp': '179',
+        'sqlnet': '1521',
+        'lpd': '515',
         # Add other mappings as needed
     }
     return port_mapping.get(port, port)
+
+def map_application(app):
+    app_mapping = {
+        'icmp': 'icmp',
+        'time-exceeded': 'icmp',
+        'unreachable': 'icmp',
+        'echo-reply': 'ping',
+        'echo': 'ping',
+        'destination-unreachable': 'icmp'
+    }
+    return app_mapping.get(app, app)

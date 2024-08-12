@@ -9,7 +9,7 @@ class AppConfig:
         self.max_workers = 4
         self.xml_file_path = 'running_config.xml'
         self.cisco_file_path = 'cisco_config.txt'
-        self.limit = '40000'
+        self.limit = '20000'
         self.obj_types = [
             obj.Tag, obj.Application, obj.Address, obj.AddressGroup, obj.Service, 
             obj.ServiceGroup, obj.ExternalDynamicList, obj.URLCategory, 

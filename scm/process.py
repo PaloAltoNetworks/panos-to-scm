@@ -76,7 +76,7 @@ class Processor:
         current_order = [rule['name'] for rule in current_rules]
         desired_order = [rule['name'] for rule in original_rules if rule['name'] in current_rule_ids]
 
-        for _ in range(8):  # Max 8 attempts
+        for _ in range(10000):  # Max 10000 attempts
             moves = []
             for i, rule_name in enumerate(desired_order[:-1]):
                 if current_order.index(rule_name) > current_order.index(desired_order[i + 1]):

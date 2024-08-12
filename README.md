@@ -1,5 +1,5 @@
 ## panos-to-scm
-- **Migrate Panorama Device Group OR Local PANOS Firewall config into Strata Cloud Manager for NGFW**
+- **Migrate Panorama Device Group OR Local PANOS Firewall config into Strata Cloud Manager NGFW**
 - **Migrate Cisco ASA/Firepower running config into Strata Cloud Manager - In progress**
 
 ## Understand the following items before running
@@ -93,6 +93,7 @@ palo_api_token: xxxxxxxxxxxxxxxxxxxxxx
 - **Decryption Policy Rules**
 
 ## Cisco ASA/Firepower migration to SCM for PANOS
+- Currently ASA/Firepower we need the running-config. `more system:running-config` or from FTD/FMC export the config. Must be in familiar ASA format
 - Your cisco config must be in the project directory and named `cisco_config.txt`
 - If you run `main.py` as is, it'll ask if you want to use the `cisco` or `panos` parser, type `cisco`
 - Optionally, you can target specific object types such as `python main.py -o Address,AddressGroup`
@@ -110,9 +111,16 @@ palo_api_token: xxxxxxxxxxxxxxxxxxxxxx
     - Replace - Replace the SCM value with XML Value
     - Append - Creates a new object with appended name `_new`. This is still work in progress, policies will still reference the original attribute
     - Ignore - Ignore the conflict and move on
+- Security Rules:
+  - Supports ASA and Firepower L3/L4 Policies that reference service objects
+  - If unsupported app/service (like icmp) it should tag rule for review
+  - Currently destination zone is 'any' - route table lookup not implemented to determine dst zone
+  - NAT rules are not considered, you will need to update Security policies with Pre-NAT IP Object
+
 
 ### Currently Supported Cisco ASA/Firepower Migration Features:
 - **Address Objects**
 - **Address Groups**
 - **Service Objects**
 - **Service Groups**
+- **Security Rules**

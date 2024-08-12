@@ -112,7 +112,11 @@ palo_api_token: xxxxxxxxxxxxxxxxxxxxxx
     - Append - Creates a new object with appended name `_new`. This is still work in progress, policies will still reference the original attribute
     - Ignore - Ignore the conflict and move on
 - Security Rules:
-  - Currently Firepower more system:running-config is needed
+  - Supports ASA and Firepower L3/L4 Policies that reference service objects
+  - If unsupported app/service (like icmp) it should tag rule for review
+  - Currently destination zone is 'any' - route table lookup not implemented to determine dst zone
+  - NAT rules are not considered, you will need to update Security policies with Pre-NAT IP Object
+
 
 ### Currently Supported Cisco ASA/Firepower Migration Features:
 - **Address Objects**

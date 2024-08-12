@@ -477,7 +477,9 @@ class CiscoParser:
     def _parse_asa_acl(self, parts, current_rule, rule_name):
         self.logger.debug(f"Parsing ASA line for rule_name {rule_name}")
         action = 'allow' if 'permit' in parts else 'deny'
+        disabled = 'inactive' in parts
         current_rule['action'] = action
+        current_rule['disabled'] = disabled
 
         # Set from_zone based on the ACL name
         acl_name = parts[1]  # Assuming the ACL name is the second part of the line
@@ -489,30 +491,47 @@ class CiscoParser:
 
         source, destination, service, protocol = None, None, None, None
         i = 4  # Start from the 5th element (index 4)
+
+        # Check if the first element after 'permit'/'deny' is an object-group or protocol
+        if parts[i] == 'object-group':
+            service = self._get_correct_obj_name(parts[i + 1])
+            i += 2
+        elif parts[i] in ['tcp', 'udp', 'ip']:
+            protocol = parts[i].upper()
+            i += 1
+
         while i < len(parts):
             part = parts[i]
-            
-            if part == 'object-group':
+
+            if part in ['object-group', 'object']:
                 obj_name = self._get_correct_obj_name(parts[i + 1])
-                if service is None and protocol is None:
-                    # Keep the original service group name
-                    service = obj_name
-                elif source is None:
+                if source is None:
                     source = obj_name
                 elif destination is None:
                     destination = obj_name
+                elif service is None:
+                    service = obj_name
                 i += 2
-            elif part in ['tcp', 'udp', 'ip']:
-                protocol = part.upper()
-                if protocol == 'IP':
-                    service = 'any'
-                elif i + 1 < len(parts) and parts[i + 1] == 'eq':
-                    port = map_port(parts[i + 2])
-                    service = f"{protocol}-{port}"
+            elif re.match(r'\d+\.\d+\.\d+\.\d+', part):
+                if i + 1 < len(parts) and re.match(r'\d+\.\d+\.\d+\.\d+', parts[i + 1]):
+                    ip = part
+                    netmask = parts[i + 1]
+                    address_name = self._add_or_get_address(ip, netmask)
+                    if source is None:
+                        source = address_name
+                    elif destination is None:
+                        destination = address_name
                     i += 2
                 else:
-                    service = protocol
-                i += 1
+                    i += 1
+            elif part == 'host':
+                ip = parts[i + 1]
+                address_name = self._add_or_get_address(ip, '255.255.255.255')
+                if source is None:
+                    source = address_name
+                elif destination is None:
+                    destination = address_name
+                i += 2
             elif part == 'eq':
                 if protocol:
                     port = map_port(parts[i + 1])
@@ -520,13 +539,6 @@ class CiscoParser:
                     i += 2
                 else:
                     i += 1
-            elif part == 'object':
-                obj_name = self._get_correct_obj_name(parts[i + 1])
-                if source is None:
-                    source = obj_name
-                elif destination is None:
-                    destination = obj_name
-                i += 2
             elif part in ['any', 'any4', 'any6']:
                 if source is None:
                     source = 'any'
@@ -540,21 +552,19 @@ class CiscoParser:
             current_rule['source'].add(source)
         if destination:
             current_rule['destination'].add(destination)
-        
+        elif destination is None:
+            current_rule['destination'].add('any')
+
         if service:
             self.logger.debug(f"Service before parsing: {service}")
             if isinstance(service, list):
-                # If service is already a list, add each item individually
                 for s in service:
                     current_rule['service'].add(s)
             else:
-                # If it's a single service or group name, add it directly
                 current_rule['service'].add(service)
-        elif protocol == 'IP':
+        elif protocol:
             current_rule['service'].add('any')
-        
-        # If service was not set during parsing, default it to 'any'
-        if not current_rule['service']:
+        else:
             current_rule['service'].add('any')
 
         self.logger.debug(f"After parsing ASA line for rule_name {rule_name}. current_rule: {current_rule}")

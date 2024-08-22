@@ -859,7 +859,7 @@ class XMLParser:
         recurring_element = element.find('recurring')
         recurring_type = next((child.tag for child in recurring_element), None) if recurring_element is not None else 'unknown'
         if recurring_type == 'five-minute':
-            recurring = {}
+            recurring = {'five_minute': {}}
         else:
             recurring = {recurring_type: {}}
         url = element.find('url').text if element.find('url') is not None else 'N/A'

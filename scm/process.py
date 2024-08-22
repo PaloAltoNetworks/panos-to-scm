@@ -343,7 +343,7 @@ class SCMObjectManager:
                 return convert_to_int_if_possible(item)
 
         normalized = {k: v for k, v in obj.items() 
-                    if k not in {'folder', 'type', 'fqdn', 'protocol', 'description'} 
+                    if k not in {'folder', 'type', 'fqdn', 'protocol', 'description', 'snippet'} 
                     and v not in (None, [], {})
                     and not (k == 'threat_name' and v == 'any')}
         

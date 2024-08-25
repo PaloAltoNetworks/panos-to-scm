@@ -17,7 +17,7 @@ class AppConfig:
             obj.AntiSpywareProfile, obj.FileBlockingProfile,
             # obj.WildFireAntivirusProfile,
             obj.DNSSecurityProfile, obj.ProfileGroup, obj.ApplicationFilter, obj.ApplicationGroup,
-            obj.Schedule, obj.DecryptionProfile
+            obj.Schedule, obj.DecryptionProfile, obj.HipObject, obj.HipProfile
         ]
         self.sec_obj = obj.SecurityRule
         self.nat_obj = obj.NatRule

@@ -13,7 +13,7 @@ class Processor:
     def set_max_workers(self, new_max_workers: int):
         self.max_workers = new_max_workers
 
-    def post_entries(self, folder_scope, entries: List[Any], obj_type, extra_query_params: str) -> Tuple[int, int, int]:
+    def post_entries(self, scope_param, entries: List[Any], obj_type, extra_query_params: str) -> Tuple[int, int, int]:
         if not entries:
             self.logger.info("No entries to process.")
             return 0, 0, 0
@@ -23,7 +23,7 @@ class Processor:
         endpoint_message = obj_type.get_endpoint().replace('/sse/config/v1/', '').replace('?', '')
         self.logger.info(f"Processing {initial_entry_count} {endpoint_message} entries in parallel.")
 
-        endpoint = f"{obj_type.get_endpoint()}{extra_query_params}&folder={folder_scope}"
+        endpoint = f"{obj_type.get_endpoint()}{extra_query_params}{scope_param}"
         results = self.create_objects(endpoint, entries)
 
         created_count, exists_count, error_count, error_objects = self.analyze_results(results)
@@ -71,7 +71,7 @@ class Processor:
             summary += f"Objects with errors:\n{chr(10).join(f' - {error}' for error in error_objects)}\n"
         self.logger.info(summary)
 
-    def reorder_rules(self, obj_type, endpoint, folder_scope, original_rules, current_rules, limit, position):
+    def reorder_rules(self, obj_type, endpoint, scope_param, original_rules, current_rules, limit, position):
         current_rule_ids = {rule['name']: rule['id'] for rule in current_rules}
         current_order = [rule['name'] for rule in current_rules]
         desired_order = [rule['name'] for rule in original_rules if rule['name'] in current_rule_ids]
@@ -95,58 +95,75 @@ class Processor:
                     if future.result()['status'] != 'success':
                         self.logger.error(f"Error moving rule: {future.result()}")
 
-            current_rules = [rule for rule in self.api_handler.get(obj_type.get_endpoint(), folder=folder_scope, limit=limit, position=position)
-                             if rule['folder'] == folder_scope]
+            current_rules = [rule for rule in self.api_handler.get(obj_type.get_endpoint(), f"{scope_param}&limit={limit}&position={position}")
+                             if rule['folder'] == scope_param.split('=')[1]]
             current_order = [rule['name'] for rule in current_rules if rule['name'] != 'default']
 
-    def check_and_reorder_rules(self, obj_type, folder_scope, original_rules, limit, position):
+    def check_and_reorder_rules(self, obj_type, scope_param, original_rules, limit, position):
         start_time = time.time()
         endpoint = obj_type.get_endpoint().replace('?', '')
-        current_rules = [rule for rule in self.api_handler.get(obj_type.get_endpoint(), folder=folder_scope, limit=limit, position=position)
+        current_rules = [rule for rule in self.api_handler.get(obj_type.get_endpoint(), f"{scope_param}&limit={limit}&position={position}")
                          if 'name' in rule and 'folder' in rule]
         current_order = [rule['name'] for rule in current_rules if rule['name'] != 'default']
         desired_order = [rule['name'] for rule in original_rules if rule['name'] != 'default']
 
         if current_order != desired_order:
             self.logger.info("Reordering rules now..")
-            self.reorder_rules(obj_type, endpoint, folder_scope, original_rules, current_rules, limit, position)
+            self.reorder_rules(obj_type, endpoint, scope_param, original_rules, current_rules, limit, position)
 
         self.logger.info(f"Time taken for reordering rules: {time.time() - start_time:.2f} seconds")
 
 class SCMObjectManager:
-    def __init__(self, api_handler, folder_scope, configure, obj_module, obj_types, sec_obj, nat_obj):
+    def __init__(self, api_handler, scope_param, configure, obj_module, obj_types, sec_obj, nat_obj):
         self.api_handler = api_handler
-        self.folder_scope = folder_scope
+        self.scope_param = scope_param
         self.configure = configure
         self.obj = obj_module
         self.obj_types = obj_types
         self.sec_obj = sec_obj
         self.nat_obj = nat_obj        
         self.logger = logging.getLogger(__name__)
+        self.scope_type, self.scope_value = self.parse_scope_param(scope_param)
+
+    def parse_scope_param(self, scope_param):
+        scope_type, scope_value = scope_param.lstrip('&').split('=')
+        return scope_type, scope_value
 
     def fetch_objects(self, obj_type, limit='10000', position=''):
         endpoint = obj_type._endpoint
-        all_objects = self.api_handler.get(endpoint, limit=limit, position=position, folder=self.folder_scope)
+        all_objects = self.api_handler.get(endpoint, params={
+            self.scope_type: self.scope_value,
+            'limit': limit,
+            'position': position
+        })
         self.logger.debug(f'All Objects Fetched: {all_objects}')
         return all_objects
 
     def fetch_rules(self, obj_type, limit='10000', position=''):
-        return [o for o in self.fetch_objects(obj_type, limit, position) if 'name' in o and 'folder' in o]
+        rules = self.fetch_objects(obj_type, limit, position)
+        return [o for o in rules if 'name' in o and ('folder' in o or 'snippet' in o)]
 
-    def process_objects(self, parsed_data, folder_scope, device_group_name, max_workers=6, limit='10000'):
+    def process_objects(self, parsed_data, scope_param, device_group_name, max_workers=6, limit='10000'):
         self.logger.info(f'Workers grabbing objects: {max_workers}')
         current_objects = self.get_current_objects(self.obj_types, max_workers, limit)
         new_entries, updated_entries = self.get_new_and_updated_entries(parsed_data, current_objects)
 
         if any(new_entries.values()):
-            self.post_new_entries(new_entries, folder_scope, device_group_name)
+            self.post_new_entries(new_entries, scope_param, device_group_name)
 
-        self.update_existing_entries(updated_entries, folder_scope, device_group_name)
+        self.update_existing_entries(updated_entries, scope_param, device_group_name)
 
     def get_current_objects(self, obj_types, max_workers=6, limit='10000', **kwargs):
         self.logger.info(f"Running with {max_workers} workers.")
         with ThreadPoolExecutor(max_workers=max_workers) as executor:
-            future_to_obj_type = {executor.submit(self.fetch_objects, obj_type, limit, **kwargs.get(obj_type.__name__, {})): obj_type for obj_type in obj_types}
+            future_to_obj_type = {
+                executor.submit(
+                    self.fetch_objects, 
+                    obj_type, 
+                    limit, 
+                    **kwargs.get(obj_type.__name__, {})
+                ): obj_type for obj_type in obj_types
+            }
             return {obj_type: future.result() for future, obj_type in future_to_obj_type.items()}
 
     def get_new_and_updated_entries(self, parsed_data, current_objects):
@@ -216,7 +233,7 @@ class SCMObjectManager:
         normalized_current = SCMObjectManager.normalize(current_object)
         return normalized_new != normalized_current
 
-    def update_existing_entries(self, updated_entries, folder_scope, device_group_name):
+    def update_existing_entries(self, updated_entries, scope_param, device_group_name):
         for obj_type in self.obj_types:
             entry_type_name = obj_type.__name__
             if entry_type_name not in updated_entries:
@@ -230,7 +247,15 @@ class SCMObjectManager:
                     continue
 
                 endpoint = f"{entry_class.get_endpoint().replace('?', '')}/{object_id}"
-                current_object = next((obj for obj in self.api_handler.get(entry_class.get_endpoint(), folder=folder_scope) if obj['name'] == entry['name']), None)
+                
+                # Parse the scope_param
+                scope_type, scope_value = scope_param.lstrip('&').split('=')
+                
+                # Construct the params dictionary for the API call
+                params = {scope_type: scope_value}
+                
+                current_objects = self.api_handler.get(entry_class.get_endpoint(), params=params)
+                current_object = next((obj for obj in current_objects if obj['name'] == entry['name']), None)
                 
                 if not current_object:
                     self.logger.error(f"Current object '{entry['name']}' not found in SCM. Skipping update.")
@@ -249,26 +274,26 @@ class SCMObjectManager:
     def _generate_key_name(self, entry_type_name):
         return entry_type_name.replace(' ', '-')
 
-    def post_new_entries(self, new_entries, folder_scope, device_group_name):
+    def post_new_entries(self, new_entries, scope_param, device_group_name):
         for obj_type in self.obj_types:
             entry_type_name = obj_type.__name__
             if entry_type_name in new_entries and new_entries[entry_type_name]:
                 entry_class = getattr(self.obj, entry_type_name)
-                self.configure.post_entries(folder_scope, new_entries[entry_type_name], entry_class, extra_query_params='')
+                self.configure.post_entries(scope_param, new_entries[entry_type_name], entry_class, extra_query_params='')
             else:
                 message = f"No new {entry_type_name} entries to create from parsed data"
                 if device_group_name:
                     message += f" (Device Group: {device_group_name})"
-                message += f" for SCM Folder: {folder_scope}."
+                message += f" for SCM {self.scope_param.split('=')[0]}: {self.scope_param.split('=')[1]}."
                 self.logger.info(message)
 
-    def process_rules(self, rule_obj, parsed_data, folder_scope, rule_type='security', limit='10000'):
+    def process_rules(self, rule_obj, parsed_data, scope_param, rule_type='security', limit='10000'):
         rule_data = {
             'security': ('security_pre_rules', 'security_post_rules'),
             'application-override': ('app_override_pre_rules', 'app_override_post_rules'),
             'decryption': ('decryption_pre_rules', 'decryption_post_rules'),
             'nat': ('nat_pre_rules', 'nat_post_rules')
-}
+        }
         pre_rules, post_rules = [parsed_data[key] for key in rule_data[rule_type]]
 
         current_rules_pre = self.fetch_rules(rule_obj, limit, position='pre')
@@ -289,16 +314,16 @@ class SCMObjectManager:
 
         for rules, extra_query_param, rule_type_name in rule_types:
             if rules:
-                self.configure.post_entries(self.folder_scope, rules, rule_obj, extra_query_params=extra_query_param)
+                self.configure.post_entries(self.scope_param, rules, rule_obj, extra_query_params=extra_query_param)
             else:
-                self.logger.info(f"No new {rule_type_name} to create from XML: {folder_scope}")
+                self.logger.info(f"No new {rule_type_name} to create from XML: {scope_param}")
 
         self.reorder_rules_if_needed(rule_obj, pre_rules, current_rules_pre, position='pre')
         self.reorder_rules_if_needed(rule_obj, post_rules, current_rules_post, position='post')
 
     def reorder_rules_if_needed(self, rule_obj, desired_rules, current_rules, position):
         if not self.is_rule_order_correct(current_rules, desired_rules):
-            self.configure.check_and_reorder_rules(rule_obj, self.folder_scope, desired_rules, limit='10000', position=position)
+            self.configure.check_and_reorder_rules(rule_obj, self.scope_param, desired_rules, limit='10000', position=position)
 
     @staticmethod
     def is_rule_order_correct(current_rules, desired_rules):
@@ -343,7 +368,7 @@ class SCMObjectManager:
                 return convert_to_int_if_possible(item)
 
         normalized = {k: v for k, v in obj.items() 
-                    if k not in {'folder', 'type', 'fqdn', 'protocol', 'description'} 
+                    if k not in {'folder', 'snippet', 'type', 'fqdn', 'protocol', 'description'} 
                     and v not in (None, [], {})
                     and not (k == 'threat_name' and v == 'any')}
         

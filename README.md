@@ -87,6 +87,8 @@ palo_api_token: xxxxxxxxxxxxxxxxxxxxxx
 - **Applications**: 
 - **Application Filters**
 - **Application Groups**
+- **HIP Objects**
+- **HIP Profiles**
 - **Security Rules**
 - **NAT Rules**
 - **Application Override Rules**

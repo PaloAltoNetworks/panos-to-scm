@@ -114,6 +114,8 @@ class XMLParser:
             'decryption_pre_rules': self._parse_entries(self._decryption_pre_rules_entries),
             'decryption_post_rules': self._parse_entries(self._decryption_post_rules_entries),
             'DNSSecurityProfile': self._parse_entries(self._dns_security_profiles_entries),
+            'HipObject': self._parse_entries(self._hip_objects_entries),
+            'HipProfile': self._parse_entries(self._hip_profiles_entries),
         }
 
     def parse_specific_types(self, object_types):
@@ -147,6 +149,8 @@ class XMLParser:
             'decryption_pre_rules': self._decryption_pre_rules_entries,
             'decryption_post_rules': self._decryption_post_rules_entries,
             'DNSSecurityProfile': self._dns_security_profiles_entries,
+            'HipObject': self._hip_objects_entries,
+            'HipProfile': self._hip_profiles_entries,
         }
 
         for obj_type in object_types:
@@ -218,6 +222,167 @@ class XMLParser:
             url_profiles.append(filtered_url_profiles)
 
         return url_profiles
+    
+    def _hip_objects_entries(self):
+        base_xpath_dict = {
+            'local': './devices/entry/vsys/entry/profiles/hip-objects/entry',
+            'shared': './shared/profiles/hip-objects/entry',
+            'device-group': './devices/entry/device-group/entry[@name="{device_group_name}"]/profiles/hip-objects/entry'
+        }
+        base_xpath = self._get_base_xpath(base_xpath_dict)
+        hip_objects = []
+
+        for entry in self.root.findall(base_xpath):
+            hip_object = {
+                'name': entry.get('name'),
+            }
+            
+            description = entry.findtext('description')
+            if description is not None:
+                hip_object['description'] = description
+
+            for category in ['host-info', 'anti-malware', 'patch-management', 'disk-backup', 'certificate', 'custom-checks', 'disk-encryption', 'firewall', 'data-loss-prevention']:
+                category_elem = entry.find(category)
+                if category_elem is not None:
+                    parsed_category = self._parse_category(category_elem)
+                    if parsed_category:  # Only add non-empty categories
+                        hip_object[category.replace('-', '_')] = parsed_category
+
+            # Remove any empty dictionaries
+            hip_object = {k: v for k, v in hip_object.items() if v}
+
+            hip_objects.append(hip_object)
+
+        return hip_objects
+
+    def _parse_category(self, category_elem):
+        result = {}
+        criteria = category_elem.find('criteria')
+        if criteria is not None:
+            result['criteria'] = self._parse_criteria(criteria, category_elem.tag)
+
+        vendor = category_elem.find('vendor')
+        if vendor is not None:
+            result['vendor'] = self._parse_vendor(vendor)
+
+        exclude_vendor = category_elem.find('exclude-vendor')
+        if exclude_vendor is not None:
+            try:
+                result['exclude_vendor'] = self._toBool(exclude_vendor.text)
+            except ValueError:
+                # If the value is not 'yes' or 'no', we'll keep the original text
+                result['exclude_vendor'] = exclude_vendor.text.lower()
+
+        return result
+
+    def _parse_criteria(self, criteria_elem, category):
+        criteria = {}
+        if category == 'host-info':
+            for child in criteria_elem:
+                if child.tag == 'os':
+                    criteria['os'] = self._parse_os(child)
+                elif child.tag in ['domain', 'client-version', 'host-id', 'host-name', 'serial-number']:
+                    criteria[child.tag] = self._parse_comparison(child)
+                elif child.tag == 'managed':
+                    criteria['managed'] = child.text.lower() == 'yes'
+        else:
+            for child in criteria_elem:
+                if child.tag in ['is-installed', 'managed', 'disk-encrypted', 'jailbroken', 'passcode-set']:
+                    criteria[child.tag.replace('-', '_')] = child.text.lower() == 'yes'
+                elif child.tag in ['is-enabled', 'real-time-protection']:
+                    criteria[child.tag.replace('-', '_')] = child.text.lower()
+                elif child.tag == 'virdef-version':
+                    criteria['virdef_version'] = self._parse_comparison(child)
+                elif child.tag == 'certificate-profile':
+                    criteria['certificate_profile'] = child.text
+                elif child.tag in ['product-version', 'last-scan-time', 'last-backup-time', 'client-version', 'domain', 'host-id', 'host-name', 'serial-number', 'imei', 'model', 'phone-number', 'tag']:
+                    criteria[child.tag.replace('-', '_')] = self._parse_comparison(child)
+                elif child.tag == 'os':
+                    criteria['os'] = self._parse_os(child)
+                elif child.tag == 'missing-patches':
+                    missing_patches = {'check': child.findtext('check')}
+                    patches = [patch.text for patch in child.findall('patches/member')]
+                    if patches:
+                        missing_patches['patches'] = patches
+                    criteria['missing_patches'] = missing_patches
+                elif child.tag == 'encrypted-locations':
+                    criteria['encrypted_locations'] = [
+                        {
+                            'name': loc.findtext('name'),
+                            'encryption_state': self._parse_comparison(loc.find('encryption-state'))
+                        }
+                        for loc in child.findall('entry')
+                    ]
+                # Add more specific parsing for other criteria as needed
+
+        return criteria
+
+    def _parse_comparison(self, elem):
+        for comp in ['greater-equal', 'greater-than', 'is', 'is-not', 'less-equal', 'less-than', 'contains', 'within', 'not-within']:
+            comp_elem = elem.find(comp)
+            if comp_elem is not None:
+                if comp == 'within' and elem.tag == 'virdef-version':
+                    days = comp_elem.findtext('days')
+                    if days is not None:
+                        return {comp: {'days': int(days)}}
+                return {comp.replace('-', '_'): comp_elem.text}
+        return None
+
+    def _parse_os(self, os_elem):
+        contains = os_elem.find('contains')
+        if contains is not None:
+            for vendor in ['Microsoft', 'Apple', 'Google', 'Linux', 'Other']:
+                vendor_elem = contains.find(vendor)
+                if vendor_elem is not None:
+                    return {'contains': {vendor: vendor_elem.text}}
+        return None
+
+    def _parse_vendor(self, vendor_elem):
+        vendors = []
+        for entry in vendor_elem.findall('entry'):
+            vendor = {
+                'name': entry.get('name'),
+                'product': [prod.text for prod in entry.findall('product/member')]
+            }
+            vendors.append(vendor)
+        return vendors
+
+    def _hip_profiles_entries(self):
+        base_xpath_dict = {
+            'local': './devices/entry/vsys/entry/profiles/hip-profiles/entry',
+            'shared': './shared/profiles/hip-profiles/entry',
+            'device-group': './devices/entry/device-group/entry[@name="{device_group_name}"]/profiles/hip-profiles/entry'
+        }
+        base_xpath = self._get_base_xpath(base_xpath_dict)
+        hip_profiles = []
+
+        for entry in self.root.findall(base_xpath):
+            hip_profile = {
+                'name': entry.get('name')
+            }
+
+            # Parse description if present
+            description = entry.findtext('description')
+            if description is not None:
+                hip_profile['description'] = description[:255]  # Limit to 255 characters as per API spec
+
+            # Parse match
+            match = entry.findtext('match')
+            if match is not None:
+                hip_profile['match'] = match[:2048]  # Limit to 2048 characters as per API spec
+
+            # Validate name length
+            if len(hip_profile['name']) > 31:
+                self.logger.warning(f"HIP profile name '{hip_profile['name']}' exceeds 31 characters. It will be truncated.")
+                hip_profile['name'] = hip_profile['name'][:31]
+
+            # Validate name characters
+            if not re.match(r'^[0-9a-zA-Z._-]+$', hip_profile['name']):
+                self.logger.warning(f"HIP profile name '{hip_profile['name']}' contains invalid characters. It should only contain alphanumeric characters, dots, underscores, and hyphens.")
+
+            hip_profiles.append(hip_profile)
+
+        return hip_profiles
 
     def _vulnerability_profiles_entries(self):
         base_xpath_dict = {
@@ -907,7 +1072,7 @@ class XMLParser:
             if tagging is not None:
                 no_tag = tagging.find("no-tag")
                 if no_tag is not None:
-                    filter_entry["tagging"] = {"no_tag": self.toBool(no_tag.text.strip())}
+                    filter_entry["tagging"] = {"no_tag": self._toBool(no_tag.text.strip())}
 
                 tags = tagging.find("./tag/member")
                 if tags is not None:
@@ -918,7 +1083,7 @@ class XMLParser:
             for attribute in ["evasive", "excessive-bandwidth-use", "used-by-malware", "transfers-files", "has-known-vulnerabilities", "tunnels-other-apps", "prone-to-misuse", "pervasive", "is-saas", "new-appid"]:
                 element = entry.find(attribute)
                 if element is not None:
-                    filter_entry[attribute.replace('-', '_')] = self.toBool(element.text.strip())
+                    filter_entry[attribute.replace('-', '_')] = self._toBool(element.text.strip())
 
             application_filters.append(filter_entry)
 
@@ -1547,27 +1712,27 @@ class XMLParser:
 
         transferfiles = application.find("able-to-transfer-file")
         if transferfiles is not None:
-            obj['able_to_transfer_file'] = self.toBool(transferfiles.text.strip())
+            obj['able_to_transfer_file'] = self._toBool(transferfiles.text.strip())
 
         noappidCaching = application.find("no-appid-caching")
         if noappidCaching is not None:
-            obj['no_appid_caching'] = self.toBool(noappidCaching.text.strip())
+            obj['no_appid_caching'] = self._toBool(noappidCaching.text.strip())
 
         tunnapps = application.find("tunnel-applications")
         if tunnapps is not None:
-            obj['tunnel_applications'] = self.toBool(tunnapps.text.strip())
+            obj['tunnel_applications'] = self._toBool(tunnapps.text.strip())
 
         tunnelotherapps = application.find("tunnel-other-application")
         if tunnelotherapps is not None:
-            obj['tunnel_other_application'] = self.toBool(tunnelotherapps.text.strip())
+            obj['tunnel_other_application'] = self._toBool(tunnelotherapps.text.strip())
 
         pervasive = application.find("pervasive-use")
         if pervasive is not None:
-            obj['pervasive_use'] = self.toBool(pervasive.text.strip())
+            obj['pervasive_use'] = self._toBool(pervasive.text.strip())
 
         evasive = application.find("evasive-behavior")
         if evasive is not None:
-            obj['evasive_behavior'] = self.toBool(evasive.text.strip())
+            obj['evasive_behavior'] = self._toBool(evasive.text.strip())
 
         algdisable = application.find("alg-disable-capability")
         if algdisable is not None:
@@ -1575,31 +1740,31 @@ class XMLParser:
 
         consumebw = application.find("consume-big-bandwidth")
         if consumebw is not None:
-            obj['consume_big_bandwidth'] = self.toBool(consumebw.text.strip())
+            obj['consume_big_bandwidth'] = self._toBool(consumebw.text.strip())
 
         prone = application.find("prone-to-misuse")
         if prone is not None:
-            obj['prone_to_misuse'] = self.toBool(prone.text.strip())
+            obj['prone_to_misuse'] = self._toBool(prone.text.strip())
 
         malware = application.find("used-by-malware")
         if malware is not None:
-            obj['used_by_malware'] = self.toBool(malware.text.strip())
+            obj['used_by_malware'] = self._toBool(malware.text.strip())
 
         vulns = application.find("has-known-vulnerability")
         if vulns is not None:
-            obj['has_known_vulnerability'] = self.toBool(vulns.text.strip())
+            obj['has_known_vulnerability'] = self._toBool(vulns.text.strip())
 
         fileTypeIdent = application.find("file-type-ident")
         if fileTypeIdent is not None:
-            obj['file_type_ident'] = self.toBool(fileTypeIdent.text.strip())
+            obj['file_type_ident'] = self._toBool(fileTypeIdent.text.strip())
 
         virusIdent = application.find("virus-ident")
         if virusIdent is not None:
-            obj['virus_ident'] = self.toBool(virusIdent.text.strip())
+            obj['virus_ident'] = self._toBool(virusIdent.text.strip())
 
         dataIdent = application.find("data-ident")
         if dataIdent is not None:
-            obj['data_ident'] = self.toBool(dataIdent.text.strip())
+            obj['data_ident'] = self._toBool(dataIdent.text.strip())
 
         timeout = application.find('timeout')
         if timeout is not None:
@@ -1679,7 +1844,7 @@ class XMLParser:
                         objSignature['scope'] = scope.text.strip()
                     orderFree = entry.find("order-free")
                     if orderFree is not None:
-                        objSignature['order_free'] = self.toBool(orderFree.text.strip())
+                        objSignature['order_free'] = self._toBool(orderFree.text.strip())
 
                     if entry.find("and-condition") is not None:
                         andConditions = entry.findall("and-condition/entry")
@@ -1797,7 +1962,7 @@ class XMLParser:
 
         return obj
 
-    def toBool(self, value):
+    def _toBool(self, value):
         if value.lower() == 'yes':
             return True
         elif value.lower() == 'no':

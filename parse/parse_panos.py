@@ -40,26 +40,30 @@ class XMLParser:
 
         device_group_xpath = root.find('.//devices/entry/device-group')
         device_group_name = None
+        scope_type = None
+        scope_value = None
 
         if device_group_xpath is not None:
             config_choice = input("Is this a Panorama 'shared' configuration or 'device-group' configuration? Enter 'shared' or 'device-group': ").strip().lower()
             if config_choice == 'device-group':
                 device_group_name = input("Enter the device-group name: ").strip()
-                confirm_folder = input('What folder do you want the objects/policies to end up in? \n Use All for "Global" -Example "US-East-DC1" This is Case Sensitive: ').strip()
-                folder_scope = confirm_folder
+                scope_type = input("Do you want to use a folder or a snippet? Enter 'folder' or 'snippet': ").strip().lower()
+                scope_value = input(f'Enter the {scope_type} name (Use "All" for "Global"): ').strip()
                 config_type = 'panorama/device-group'
             else:
-                confirm_global = input("Do you want these objects/policies to end up in the Global Folder on SCM? yes/no: ").strip().lower()
-                folder_scope = "All" if confirm_global == 'yes' else input('Enter folder name: ').strip()
+                scope_type = input("Do you want to use a folder or a snippet? Enter 'folder' or 'snippet': ").strip().lower()
+                scope_value = input(f'Enter the {scope_type} name (Use "All" for "Global"): ').strip()
                 config_type = 'panorama/shared'
         else:
-            confirm_folder = input('What folder do you want the objects/policies to end up in? \n Use All for "Global" -Example "US-East-DC1" This is Case Sensitive: ').strip()
-            folder_scope = confirm_folder
+            scope_type = input("Do you want to use a folder or a snippet? Enter 'folder' or 'snippet': ").strip().lower()
+            scope_value = input(f'Enter the {scope_type} name (Use "All" for "Global"): ').strip()
             config_type = 'local'
 
-        self.logger.debug(f"Parsed config and set scope: folder_scope={folder_scope}, config_type={config_type}, device_group_name={device_group_name}")
+        scope_param = f"&{scope_type}={scope_value}"
 
-        return folder_scope, config_type, device_group_name
+        self.logger.debug(f"Parsed config and set scope: {scope_type}={scope_value}, config_type={config_type}, device_group_name={device_group_name}")
+
+        return scope_param, config_type, device_group_name
 
     def etree_to_dict(self, element):
         if element is None:
@@ -370,15 +374,28 @@ class XMLParser:
                 # Handle sinkhole
                 sinkhole_element = botnet_domains_element.find('sinkhole')
                 sinkhole = {
-                    'ipv4_address': sinkhole_element.find('ipv4-address').text if sinkhole_element.find('ipv4-address') is not None else '127.0.0.1',
-                    'ipv6_address': sinkhole_element.find('ipv6-address').text if sinkhole_element.find('ipv6-address') is not None else '::1'
+                    'ipv4_address': 'pan-sinkhole-default-ip',
+                    'ipv6_address': '::1'
                 }
-                # Ensure ipv4_address is within allowed values
-                if sinkhole['ipv4_address'] not in ['127.0.0.1', 'pan-sinkhole-default-ip']:
-                    sinkhole['ipv4_address'] = '127.0.0.1'
-                # Ensure ipv6_address is within allowed values
-                if sinkhole['ipv6_address'] != '::1':
-                    sinkhole['ipv6_address'] = '::1'
+                if sinkhole_element is not None:
+                    ipv4_element = sinkhole_element.find('ipv4-address')
+                    ipv6_element = sinkhole_element.find('ipv6-address')
+                    
+                    if ipv4_element is not None:
+                        ipv4_value = ipv4_element.text
+                        # Ensure ipv4_address is within allowed values
+                        if ipv4_value in ['127.0.0.1', 'pan-sinkhole-default-ip']:
+                            sinkhole['ipv4_address'] = ipv4_value
+                        else:
+                            self.logger.warning(f"Invalid ipv4_address '{ipv4_value}' for profile '{profile_name}'. Using default 'pan-sinkhole-default-ip'.")
+                    
+                    if ipv6_element is not None:
+                        ipv6_value = ipv6_element.text
+                        # Ensure ipv6_address is the allowed value
+                        if ipv6_value == '::1':
+                            sinkhole['ipv6_address'] = ipv6_value
+                        else:
+                            self.logger.warning(f"Invalid ipv6_address '{ipv6_value}' for profile '{profile_name}'. Using default '::1'.")
 
                 # Handle whitelist
                 whitelist = []
@@ -1299,94 +1316,28 @@ class XMLParser:
 
             service_value = service.text if service is not None else 'any'
 
+            # Handle destination translation
             destination_translation_dict = None
             if destination_translation is not None:
                 translated_address = destination_translation.find('translated-address')
                 translated_port = destination_translation.find('translated-port')
-                dns_rewrite = destination_translation.find('dns-rewrite')
+                destination_translation_dict = {}
+                if translated_address is not None:
+                    destination_translation_dict['translated_address'] = translated_address.text
+                if translated_port is not None:
+                    destination_translation_dict['translated_port'] = translated_port.text
 
-                destination_translation_dict = {
-                    'translated_address': translated_address.text if translated_address is not None else None,
-                    'translated_port': int(translated_port.text) if translated_port is not None else None,
-                    'dns_rewrite': {
-                        'direction': dns_rewrite.find('direction').text if dns_rewrite is not None else None
-                    } if dns_rewrite is not None else None
-                }
-                destination_translation_dict = {k: v for k, v in destination_translation_dict.items() if v is not None}
-
+            # Handle source translation
             source_translation_dict = None
             if source_translation is not None:
                 dynamic_ip_and_port = source_translation.find('dynamic-ip-and-port')
-                static_ip = source_translation.find('static-ip')
-                dynamic_ip = source_translation.find('dynamic-ip')
-
                 if dynamic_ip_and_port is not None:
-                    interface_address = dynamic_ip_and_port.find('interface-address')
-                    translated_addresses = [addr.text.strip() for addr in dynamic_ip_and_port.findall('translated-address/member') if addr.text.strip()]
-
-                    dynamic_ip_and_port_dict = {}
-
-                    if interface_address is not None:
-                        dynamic_ip_and_port_dict['interface_address'] = {
-                            'interface': interface_address.find('interface').text if interface_address.find('interface') is not None else None,
-                            'ip': interface_address.find('ip').text if interface_address.find('ip') is not None else None,
-                        }
-                        dynamic_ip_and_port_dict['interface_address'] = {k: v for k, v in dynamic_ip_and_port_dict['interface_address'].items() if v is not None}
-
-                        if not dynamic_ip_and_port_dict['interface_address']:
-                            dynamic_ip_and_port_dict.pop('interface_address', None)
-
-                    if translated_addresses:
-                        dynamic_ip_and_port_dict['translated_address_array'] = translated_addresses
-
+                    translated_addresses = dynamic_ip_and_port.findall('translated-address/member')
                     source_translation_dict = {
-                        'dynamic_ip_and_port': dynamic_ip_and_port_dict
-                    }
-
-                elif static_ip is not None:
-                    translated_address = static_ip.find('translated-address')
-                    bi_directional = static_ip.find('bi-directional')
-
-                    source_translation_dict = {
-                        'static_ip': {
-                            'translated_address': translated_address.text if translated_address is not None else None,
-                            'bi_directional': bi_directional.text if bi_directional is not None else None,
+                        'dynamic_ip_and_port': {
+                            'translated_address': [addr.text for addr in translated_addresses] if translated_addresses else None
                         }
                     }
-                elif dynamic_ip is not None:
-                    translated_addresses = [addr.text.strip() for addr in dynamic_ip.findall('translated-address/member') if addr.text.strip()]
-                    fallback = dynamic_ip.find('fallback')
-
-                    fallback_dict = None
-                    if fallback is not None:
-                        fallback_translated_addresses = [addr.text.strip() for addr in fallback.findall('translated-address/member') if addr.text.strip()]
-                        fallback_interface_address = fallback.find('interface-address')
-
-                        fallback_dict = {
-                            'translated_address_array': fallback_translated_addresses if fallback_translated_addresses else [],
-                            'interface_address': {
-                                'interface': fallback_interface_address.find('interface').text if fallback_interface_address.find('interface') is not None else None,
-                                'ip': fallback_interface_address.find('ip').text if fallback_interface_address.find('ip') is not None else None,
-                            } if fallback_interface_address is not None else {},
-                        }
-
-                        fallback_dict['interface_address'] = {k: v for k, v in fallback_dict['interface_address'].items() if v is not None}
-
-                        if not fallback_dict['interface_address']:
-                            fallback_dict.pop('interface_address', None)
-
-                    source_translation_dict = {
-                        'dynamic_ip': {
-                            'translated_address_array': translated_addresses if translated_addresses else [],
-                            'fallback': fallback_dict,
-                        }
-                    }
-
-                    if not source_translation_dict['dynamic_ip']['translated_address_array']:
-                        source_translation_dict['dynamic_ip'].pop('translated_address_array', None)
-
-                if source_translation_dict:
-                    source_translation_dict = {k: v for k, v in source_translation_dict.items() if v is not None}
 
             nat_rule = {
                 'name': name,
@@ -1395,17 +1346,17 @@ class XMLParser:
                 'source': [member.text for member in source] if source else [],
                 'destination': [member.text for member in destination] if destination else [],
                 'service': service_value,
-                'nat_type': nat_type.text if nat_type else None,
-                'description': description.text if description else None,
-                'disabled': disabled.text == 'yes' if disabled else False,
+                'nat_type': nat_type.text if nat_type is not None else None,
+                'description': description.text if description is not None else None,
+                'disabled': disabled.text == 'yes' if disabled is not None else False,
                 'tag': [member.text for member in tag] if tag else [],
                 'source_translation': source_translation_dict,
                 'destination_translation': destination_translation_dict,
-                'active_active_device_binding': active_active_device_binding.text if active_active_device_binding else None
+                'active_active_device_binding': active_active_device_binding.text if active_active_device_binding is not None else None
             }
 
-            filtered_nat_rules = {k: v for k, v in nat_rule.items() if v is not None}
-            nat_rules.append(filtered_nat_rules)
+            filtered_nat_rule = {k: v for k, v in nat_rule.items() if v is not None}
+            nat_rules.append(filtered_nat_rule)
 
         return nat_rules
 
@@ -1435,94 +1386,28 @@ class XMLParser:
 
             service_value = service.text if service is not None else 'any'
 
+            # Handle destination translation
             destination_translation_dict = None
             if destination_translation is not None:
                 translated_address = destination_translation.find('translated-address')
                 translated_port = destination_translation.find('translated-port')
-                dns_rewrite = destination_translation.find('dns-rewrite')
+                destination_translation_dict = {}
+                if translated_address is not None:
+                    destination_translation_dict['translated_address'] = translated_address.text
+                if translated_port is not None:
+                    destination_translation_dict['translated_port'] = translated_port.text
 
-                destination_translation_dict = {
-                    'translated_address': translated_address.text if translated_address is not None else None,
-                    'translated_port': int(translated_port.text) if translated_port is not None else None,
-                    'dns_rewrite': {
-                        'direction': dns_rewrite.find('direction').text if dns_rewrite is not None else None
-                    } if dns_rewrite is not None else None
-                }
-                destination_translation_dict = {k: v for k, v in destination_translation_dict.items() if v is not None}
-
+            # Handle source translation
             source_translation_dict = None
             if source_translation is not None:
                 dynamic_ip_and_port = source_translation.find('dynamic-ip-and-port')
-                static_ip = source_translation.find('static-ip')
-                dynamic_ip = source_translation.find('dynamic-ip')
-
                 if dynamic_ip_and_port is not None:
-                    interface_address = dynamic_ip_and_port.find('interface-address')
-                    translated_addresses = [addr.text.strip() for addr in dynamic_ip_and_port.findall('translated-address/member') if addr.text.strip()]
-
-                    dynamic_ip_and_port_dict = {}
-
-                    if interface_address is not None:
-                        dynamic_ip_and_port_dict['interface_address'] = {
-                            'interface': interface_address.find('interface').text if interface_address.find('interface') is not None else None,
-                            'ip': interface_address.find('ip').text if interface_address.find('ip') is not None else None,
-                        }
-                        dynamic_ip_and_port_dict['interface_address'] = {k: v for k, v in dynamic_ip_and_port_dict['interface_address'].items() if v is not None}
-
-                        if not dynamic_ip_and_port_dict['interface_address']:
-                            dynamic_ip_and_port_dict.pop('interface_address', None)
-
-                    if translated_addresses:
-                        dynamic_ip_and_port_dict['translated_address_array'] = translated_addresses
-
+                    translated_addresses = dynamic_ip_and_port.findall('translated-address/member')
                     source_translation_dict = {
-                        'dynamic_ip_and_port': dynamic_ip_and_port_dict
-                    }
-
-                elif static_ip is not None:
-                    translated_address = static_ip.find('translated-address')
-                    bi_directional = static_ip.find('bi-directional')
-
-                    source_translation_dict = {
-                        'static_ip': {
-                            'translated_address': translated_address.text if translated_address is not None else None,
-                            'bi_directional': bi_directional.text if bi_directional is not None else None,
+                        'dynamic_ip_and_port': {
+                            'translated_address': [addr.text for addr in translated_addresses] if translated_addresses else None
                         }
                     }
-                elif dynamic_ip is not None:
-                    translated_addresses = [addr.text.strip() for addr in dynamic_ip.findall('translated-address/member') if addr.text.strip()]
-                    fallback = dynamic_ip.find('fallback')
-
-                    fallback_dict = None
-                    if fallback is not None:
-                        fallback_translated_addresses = [addr.text.strip() for addr in fallback.findall('translated-address/member') if addr.text.strip()]
-                        fallback_interface_address = fallback.find('interface-address')
-
-                        fallback_dict = {
-                            'translated_address_array': fallback_translated_addresses if fallback_translated_addresses else [],
-                            'interface_address': {
-                                'interface': fallback_interface_address.find('interface').text if fallback_interface_address.find('interface') is not None else None,
-                                'ip': fallback_interface_address.find('ip').text if fallback_interface_address.find('ip') is not None else None,
-                            } if fallback_interface_address is not None else {},
-                        }
-
-                        fallback_dict['interface_address'] = {k: v for k, v in fallback_dict['interface_address'].items() if v is not None}
-
-                        if not fallback_dict['interface_address']:
-                            fallback_dict.pop('interface_address', None)
-
-                    source_translation_dict = {
-                        'dynamic_ip': {
-                            'translated_address_array': translated_addresses if translated_addresses else [],
-                            'fallback': fallback_dict,
-                        }
-                    }
-
-                    if not source_translation_dict['dynamic_ip']['translated_address_array']:
-                        source_translation_dict['dynamic_ip'].pop('translated_address_array', None)
-
-                if source_translation_dict:
-                    source_translation_dict = {k: v for k, v in source_translation_dict.items() if v is not None}
 
             nat_rule = {
                 'name': name,
@@ -1531,17 +1416,17 @@ class XMLParser:
                 'source': [member.text for member in source] if source else [],
                 'destination': [member.text for member in destination] if destination else [],
                 'service': service_value,
-                'nat_type': nat_type.text if nat_type else None,
-                'description': description.text if description else None,
-                'disabled': disabled.text == 'yes' if disabled else False,
+                'nat_type': nat_type.text if nat_type is not None else None,
+                'description': description.text if description is not None else None,
+                'disabled': disabled.text == 'yes' if disabled is not None else False,
                 'tag': [member.text for member in tag] if tag else [],
                 'source_translation': source_translation_dict,
                 'destination_translation': destination_translation_dict,
-                'active_active_device_binding': active_active_device_binding.text if active_active_device_binding else None
+                'active_active_device_binding': active_active_device_binding.text if active_active_device_binding is not None else None
             }
 
-            filtered_nat_rules = {k: v for k, v in nat_rule.items() if v is not None}
-            nat_rules.append(filtered_nat_rules)
+            filtered_nat_rule = {k: v for k, v in nat_rule.items() if v is not None}
+            nat_rules.append(filtered_nat_rule)
 
         return nat_rules
 

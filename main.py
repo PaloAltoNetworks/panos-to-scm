@@ -59,17 +59,17 @@ def initialize_api_session():
     session.authenticate()
     return session
 
-def setup_scm_object_manager(session, configure, obj_types, sec_obj, nat_obj, folder_scope):
-    return SCMObjectManager(session, folder_scope, configure, obj, obj_types, sec_obj, nat_obj)
+def setup_scm_object_manager(session, configure, obj_types, sec_obj, nat_obj, scope_param):
+    return SCMObjectManager(session, scope_param, configure, obj, obj_types, sec_obj, nat_obj)
 
-def run_selected_objects(parsed_data, scm_obj_manager, folder_scope, device_group_name, run_objects_list):
+def run_selected_objects(parsed_data, scm_obj_manager, scope_param, device_group_name, run_objects_list):
     selected_obj_types = [obj for obj in config.obj_types if obj.__name__ in run_objects_list]
     
     if not selected_obj_types:
         logger.warning(f"No valid objects found to run for {run_objects_list}")
         return
     
-    scm_obj_manager.process_objects(parsed_data, folder_scope, device_group_name, max_workers=6, limit=config.limit)
+    scm_obj_manager.process_objects(parsed_data, scope_param, device_group_name, max_workers=6, limit=config.limit)
 
 def main(config, run_objects=None, run_security=False, run_app_override=False, run_decrypt_rules=False, run_nat=False, run_all=False):
     try:
@@ -85,8 +85,9 @@ def main(config, run_objects=None, run_security=False, run_app_override=False, r
 
         if config_type == 'panos':
             parser = XMLParser(file_path, config_type)
-            folder_scope, config_type, device_group_name = parser.parse_config_and_set_scope(file_path)
-            logger.info(f'Current SCM Folder: {folder_scope}, PANOS: {config_type}, Device Group: {device_group_name}')
+            scope_param, config_type, device_group_name = parser.parse_config_and_set_scope(file_path)
+            scope_type, scope_value = scope_param.replace('&', '').split('=')
+            logger.info(f'Current SCM {scope_type}: {scope_value}, PANOS: {config_type}, Device Group: {device_group_name}')
             parser.config_type = config_type
             parser.device_group_name = device_group_name
 
@@ -101,24 +102,26 @@ def main(config, run_objects=None, run_security=False, run_app_override=False, r
             parser = CiscoParser(file_path)
             parser.parse()
             parsed_data = parser.get_parsed_data()
-            folder_scope = input("What folder is Cisco config going into? Case Sensitive: ").strip()
-            device_group_name = None  # No device group in Cisco firewall
-            run_objects_list = run_objects.split(',') if run_objects else []  # Initialize run_objects_list for Cisco
+            scope_type = input("Do you want to use a folder or a snippet for Cisco config? Enter 'folder' or 'snippet': ").strip().lower()
+            scope_value = input(f"What {scope_type} is Cisco config going into? Case Sensitive: ").strip()
+            scope_param = f"&{scope_type}={scope_value}"
+            device_group_name = None
+            run_objects_list = run_objects.split(',') if run_objects else []
 
         logger.debug(f"Parsed data keys: {list(parsed_data.keys())}")
 
         selected_obj_types = [obj for obj in config.obj_types if obj.__name__ in run_objects_list] if run_objects else config.obj_types
-        scm_obj_manager = setup_scm_object_manager(api_session, configure, selected_obj_types, config.sec_obj, config.nat_obj, folder_scope)
+        scm_obj_manager = setup_scm_object_manager(api_session, configure, selected_obj_types, config.sec_obj, config.nat_obj, scope_param)
 
         if run_all:
-            scm_obj_manager.process_objects(parsed_data, folder_scope, device_group_name, max_workers=6, limit=config.limit)
+            scm_obj_manager.process_objects(parsed_data, scope_param, device_group_name, max_workers=6, limit=config.limit)
             scm_obj_manager.process_rules(config.sec_obj, parsed_data, file_path, limit=config.limit, rule_type='security')
             scm_obj_manager.process_rules(config.app_override_obj, parsed_data, file_path, limit=config.limit, rule_type='application-override')
             scm_obj_manager.process_rules(config.decryption_rule_obj, parsed_data, file_path, limit=config.limit, rule_type='decryption')
             configure.set_max_workers(1)  # Set max workers to 1 for NAT rules
             scm_obj_manager.process_rules(config.nat_obj, parsed_data, file_path, limit=config.limit, rule_type='nat')
         elif run_objects:
-            run_selected_objects(parsed_data, scm_obj_manager, folder_scope, device_group_name, run_objects_list)
+            run_selected_objects(parsed_data, scm_obj_manager, scope_param, device_group_name, run_objects_list)
         else:
             if run_security:
                 scm_obj_manager.process_rules(config.sec_obj, parsed_data, file_path, limit=config.limit, rule_type='security')
@@ -130,7 +133,7 @@ def main(config, run_objects=None, run_security=False, run_app_override=False, r
                 configure.set_max_workers(1)  # Set max workers to 1 for NAT rules
                 scm_obj_manager.process_rules(config.nat_obj, parsed_data, file_path, limit=config.limit, rule_type='nat')
             else:
-                scm_obj_manager.process_objects(parsed_data, folder_scope, device_group_name, max_workers=6, limit=config.limit)
+                scm_obj_manager.process_objects(parsed_data, scope_param, device_group_name, max_workers=6, limit=config.limit)
 
         end_time = time.time()
         logger.info(f"Script execution time: {end_time - start_time:.2f} seconds")

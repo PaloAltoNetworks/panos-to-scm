@@ -20,6 +20,7 @@ CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 import logging
 import time
 import json
+from urllib.parse import urlencode
 
 class PanApiHandler:
     BASE_URL = "https://api.sase.paloaltonetworks.com"
@@ -32,26 +33,54 @@ class PanApiHandler:
         """ Ensure the session token is valid. """
         self.session.ensure_valid_token()
 
-    def get(self, endpoint, retries=1, delay=0.5, **kwargs):
+from urllib.parse import urlencode, parse_qsl
+
+class PanApiHandler:
+    BASE_URL = "https://api.sase.paloaltonetworks.com"
+
+    def __init__(self, session):
+        self.session = session
+        self.logger = logging.getLogger(__name__)
+
+    def ensure_valid_token(self):
+        """ Ensure the session token is valid. """
+        self.session.ensure_valid_token()
+
+    def get(self, endpoint, params=None, retries=1, delay=0.5):
         """ Retrieve objects or a specific object from the API using GET method. """
         self.ensure_valid_token()
 
-        # Constructing the URL with additional query parameters
-        query_params = '&'.join([f'{key}={value}' for key, value in kwargs.items()])
-        url = f"{self.BASE_URL}{endpoint}{query_params}"
-        logging.info(f'Fetching items: {url}')
+        url = f"{self.BASE_URL}{endpoint}"
+        
+        # Handle different types of params input
+        if params is None:
+            params = {}
+        elif isinstance(params, str):
+            # If params is a string, parse it into a dictionary
+            params = dict(parse_qsl(params.lstrip('?')))
+        elif not isinstance(params, dict):
+            self.logger.error(f"Invalid params type: {type(params)}. Expected dict or string.")
+            return None
+
+        if params:
+            query_string = urlencode(params)
+            full_url = f"{url}{query_string}"
+        else:
+            full_url = url
+
+        self.logger.info(f'Fetching items: {full_url}')
 
         for attempt in range(retries + 1):
             try:
-                response = self.session.get(url, timeout=10)
+                response = self.session.get(url, params=params, timeout=10)
                 if response.status_code == 200:
                     return response.json().get('data')
                 else:
-                    logging.error(f"API Error: {response.json()}, Status Code: {response.status_code}")
+                    self.logger.error(f"API Error: {response.json()}, Status Code: {response.status_code}")
                     if attempt < retries:
                         time.sleep(delay)
             except Exception as e:
-                logging.error(f"Exception: {str(e)}")
+                self.logger.error(f"Exception: {str(e)}")
                 if attempt < retries:
                     time.sleep(delay)
 

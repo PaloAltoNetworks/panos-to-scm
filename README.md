@@ -15,8 +15,12 @@ git clone https://github.com/PaloAltoNetworks/panos-to-scm.git
 cd panos-to-scm
 ```
 
-### Step 2: Install the Package
-"pip install ."
+### Step 2: Create a VENV and Install the Dependencies
+```bash
+python3 -m venv venv
+source venv/bin/activate
+pip3 install -r requirements.txt
+```
 
 ### Step 3: SCM and PANOS Credentials
 - **Common Services IAM account**

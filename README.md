@@ -69,13 +69,12 @@ palo_api_token: xxxxxxxxxxxxxxxxxxxxxx
 
 ### Currently Supported PAN-OS Migration Features:
 
-- **External Dynamic List**: Supports IP, URL, Domain lists
+- **External Dynamic List**
 - **Custom URL Categories**
 - **URL Filter Profiles**
 - **Vulnerability Profiles**
 - **Anti-Spyware Profiles**
 - **DNS Security Profiles**
-- **Wildfire/Anti-Virus Profiles**: 
 - **File Blocking Profiles**
 - **Decryption Profiles**
 - **Profile Groups**

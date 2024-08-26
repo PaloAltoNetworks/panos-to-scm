@@ -83,7 +83,7 @@ palo_api_token: xxxxxxxxxxxxxxxxxxxxxx
 - **Address Groups**
 - **Service Objects**
 - **Service Groups**
-- **Applications**: 
+- **Applications**
 - **Application Filters**
 - **Application Groups**
 - **HIP Objects**

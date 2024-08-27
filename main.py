@@ -1,10 +1,10 @@
 import logging
 from logging.handlers import TimedRotatingFileHandler
 import time
-import os  # Import os module
+import os
 from config import ConfigurationManager
 from parse.parse_panos import XMLParser
-from parse.parse_cisco import CiscoParser  # Cisco Parser added
+from parse.parse_cisco import CiscoParser
 from api import PanApiSession
 from scm import PanApiHandler
 from scm.process import Processor, SCMObjectManager

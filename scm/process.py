@@ -233,7 +233,7 @@ class SCMObjectManager:
         normalized_current = SCMObjectManager.normalize(current_object)
         return normalized_new != normalized_current
 
-    def update_existing_entries(self, updated_entries, scope_param, device_group_name):
+    def update_existing_entries(self, updated_entries, scope_param, device_group_name, limit='20000'):
         for obj_type in self.obj_types:
             entry_type_name = obj_type.__name__
             if entry_type_name not in updated_entries:
@@ -252,7 +252,7 @@ class SCMObjectManager:
                 scope_type, scope_value = scope_param.lstrip('&').split('=')
                 
                 # Construct the params dictionary for the API call
-                params = {scope_type: scope_value}
+                params = {scope_type: scope_value, 'limit': limit}
                 
                 current_objects = self.api_handler.get(entry_class.get_endpoint(), params=params)
                 current_object = next((obj for obj in current_objects if obj['name'] == entry['name']), None)

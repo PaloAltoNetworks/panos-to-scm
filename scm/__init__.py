@@ -72,7 +72,7 @@ class PanApiHandler:
 
         for attempt in range(retries + 1):
             try:
-                response = self.session.get(url, params=params, timeout=10)
+                response = self.session.get(url, params=params, timeout=20)
                 if response.status_code == 200:
                     return response.json().get('data')
                 else:
@@ -92,7 +92,7 @@ class PanApiHandler:
         for attempt in range(retries + 1):
             try:
                 self.ensure_valid_token()
-                response = self.session.post(url, json=item_data, timeout=10)
+                response = self.session.post(url, json=item_data, timeout=20)
                 if response.status_code in [200, 201]:
                     # Object created or updated successfully
                     return {'status': 'success', 'message': 'Object processed', 'name': item_data.get('name')}
@@ -124,7 +124,7 @@ class PanApiHandler:
         for attempt in range(retries + 1):
             try:
                 self.ensure_valid_token()
-                response = self.session.put(url, json=item_data, timeout=10)
+                response = self.session.put(url, json=item_data, timeout=20)
                 if response.status_code in [200, 204]:
                     return {'status': 'success', 'message': 'Object updated', 'name': item_data.get('name')}
                 else:

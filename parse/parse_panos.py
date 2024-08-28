@@ -1038,12 +1038,44 @@ class XMLParser:
         return None
 
     def _create_edl_entry_dict(self, name, edl_type, element):
+        # Find the recurring element and determine the type (e.g., daily, weekly, monthly)
         recurring_element = element.find('recurring')
-        recurring_type = next((child.tag for child in recurring_element), None) if recurring_element is not None else 'unknown'
-        if recurring_type == 'five-minute':
-            recurring = {'five_minute': {}}
-        else:
-            recurring = {recurring_type: {}}
+        recurring = {}
+        if recurring_element is not None:
+            for child in recurring_element:
+                recurring_type = child.tag
+                recurring_detail = {}
+                at_element = child.find('at')
+                if at_element is not None:
+                    recurring_detail['at'] = at_element.text
+                
+                # Handle different types of recurrence
+                if recurring_type == 'daily':
+                    if at_element is not None:
+                        recurring_detail['at'] = at_element.text
+                    else:
+                        recurring_detail['at'] = '00'  # Default to '00' if 'at' is missing
+
+                elif recurring_type == 'weekly':
+                    day_elements = child.findall('day-of-week')
+                    days = [day.text for day in day_elements]
+                    recurring_detail['day_of_week'] = days
+                    if at_element is not None:
+                        recurring_detail['at'] = at_element.text
+                    else:
+                        recurring_detail['at'] = '00'  # Default to '00' if 'at' is missing
+
+                elif recurring_type == 'monthly':
+                    day_of_month_element = child.find('day-of-month')
+                    if day_of_month_element is not None:
+                        recurring_detail['day_of_month'] = int(day_of_month_element.text)
+                    if at_element is not None:
+                        recurring_detail['at'] = at_element.text
+                    else:
+                        recurring_detail['at'] = '00'  # Default to '00' if 'at' is missing
+
+                recurring[recurring_type] = recurring_detail
+
         url = element.find('url').text if element.find('url') is not None else 'N/A'
         profile = element.find('certificate-profile').text if element.find('certificate-profile') is not None else 'Default'
 

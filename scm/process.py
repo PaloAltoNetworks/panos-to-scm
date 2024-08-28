@@ -4,10 +4,11 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import Any, List, Tuple, Dict
 
 class Processor:
-    def __init__(self, api_handler, max_workers: int, obj_module):
+    def __init__(self, api_handler, max_workers: int, obj_module, scm_object_manager):
         self.api_handler = api_handler
         self.max_workers = max_workers
         self.obj = obj_module
+        self.scm_object_manager = scm_object_manager
         self.logger = logging.getLogger(__name__)
 
     def set_max_workers(self, new_max_workers: int):
@@ -95,29 +96,36 @@ class Processor:
                     if future.result()['status'] != 'success':
                         self.logger.error(f"Error moving rule: {future.result()}")
 
-            current_rules = [rule for rule in self.api_handler.get(obj_type.get_endpoint(), f"{scope_param}&limit={limit}&position={position}")
-                             if rule['folder'] == scope_param.split('=')[1]]
+            # Use the fetch_rules method from SCMObjectManager
+            current_rules = self.scm_object_manager.fetch_rules(obj_type, limit=limit, position=position)
             current_order = [rule['name'] for rule in current_rules if rule['name'] != 'default']
+
+        return current_rules  # Return the final state of the rules
 
     def check_and_reorder_rules(self, obj_type, scope_param, original_rules, limit, position):
         start_time = time.time()
         endpoint = obj_type.get_endpoint().replace('?', '')
-        current_rules = [rule for rule in self.api_handler.get(obj_type.get_endpoint(), f"{scope_param}&limit={limit}&position={position}")
-                         if 'name' in rule and 'folder' in rule]
+
+        # Use the fetch_rules method to get the current rules
+        current_rules = self.scm_object_manager.fetch_rules(obj_type, limit=limit, position=position)
+        
+        # Extract the current and desired order of rules, excluding 'default' rules
         current_order = [rule['name'] for rule in current_rules if rule['name'] != 'default']
         desired_order = [rule['name'] for rule in original_rules if rule['name'] != 'default']
 
+        # Compare the current order with the desired order
         if current_order != desired_order:
             self.logger.info("Reordering rules now..")
             self.reorder_rules(obj_type, endpoint, scope_param, original_rules, current_rules, limit, position)
 
         self.logger.info(f"Time taken for reordering rules: {time.time() - start_time:.2f} seconds")
 
+
 class SCMObjectManager:
-    def __init__(self, api_handler, scope_param, configure, obj_module, obj_types, sec_obj, nat_obj):
+    def __init__(self, api_handler, scope_param, obj_module, obj_types, sec_obj, nat_obj):
         self.api_handler = api_handler
         self.scope_param = scope_param
-        self.configure = configure
+        self.configure = Processor(api_handler, 6, obj_module, self)
         self.obj = obj_module
         self.obj_types = obj_types
         self.sec_obj = sec_obj
@@ -131,12 +139,45 @@ class SCMObjectManager:
 
     def fetch_objects(self, obj_type, limit='10000', position=''):
         endpoint = obj_type._endpoint
-        all_objects = self.api_handler.get(endpoint, params={
-            self.scope_type: self.scope_value,
-            'limit': limit,
-            'position': position
-        })
-        self.logger.debug(f'All Objects Fetched: {all_objects}')
+        max_limit = 5000  # Maximum limit allowed by the API - atleast for GET on address objects
+        total_limit = int(limit)  # Convert the limit to an integer
+        offset = 0  # Start offset for pagination
+        all_objects = []  # Initialize list to store all fetched objects
+
+        while offset < total_limit:
+            # Calculate the limit for the current batch, ensuring it does not exceed max_limit
+            current_limit = min(max_limit, total_limit - offset)
+            params = {
+                self.scope_type: self.scope_value,
+                'limit': current_limit,
+                'offset': offset  # Include the offset for pagination
+            }
+            if position:
+                params['position'] = position
+            
+            # Fetch the current batch of objects
+            current_objects = self.api_handler.get(endpoint, params=params)
+            self.logger.debug(f'Fetched batch with offset {offset}: {current_objects}')
+
+            # Add the current batch to the overall list
+            all_objects.extend(current_objects)
+
+            # Update offset for the next batch
+            offset += current_limit
+            
+            # Debug statement to log the count of objects
+            object_count = len([obj for obj in current_objects if 'name' in obj])
+            self.logger.debug(f'Number of objects in current batch with "name" key: {object_count}')
+
+            # Stop fetching if the number of objects returned is less than requested for the batch
+            if len(current_objects) < current_limit:
+                self.logger.debug('Fetched fewer objects than requested for the batch, no more objects to fetch.')
+                break
+
+        # Log the total number of objects fetched
+        total_object_count = len(all_objects)
+        self.logger.debug(f'Total number of objects fetched: {total_object_count}')
+
         return all_objects
 
     def fetch_rules(self, obj_type, limit='10000', position=''):
@@ -151,7 +192,7 @@ class SCMObjectManager:
         if any(new_entries.values()):
             self.post_new_entries(new_entries, scope_param, device_group_name)
 
-        self.update_existing_entries(updated_entries, scope_param, device_group_name)
+        self.update_existing_entries(updated_entries, scope_param, device_group_name, limit)
 
     def get_current_objects(self, obj_types, max_workers=6, limit='10000', **kwargs):
         self.logger.info(f"Running with {max_workers} workers.")
@@ -233,7 +274,7 @@ class SCMObjectManager:
         normalized_current = SCMObjectManager.normalize(current_object)
         return normalized_new != normalized_current
 
-    def update_existing_entries(self, updated_entries, scope_param, device_group_name):
+    def update_existing_entries(self, updated_entries, scope_param, device_group_name, limit):
         for obj_type in self.obj_types:
             entry_type_name = obj_type.__name__
             if entry_type_name not in updated_entries:
@@ -252,7 +293,7 @@ class SCMObjectManager:
                 scope_type, scope_value = scope_param.lstrip('&').split('=')
                 
                 # Construct the params dictionary for the API call
-                params = {scope_type: scope_value}
+                params = {scope_type: scope_value, limit: limit}
                 
                 current_objects = self.api_handler.get(entry_class.get_endpoint(), params=params)
                 current_object = next((obj for obj in current_objects if obj['name'] == entry['name']), None)
@@ -318,15 +359,15 @@ class SCMObjectManager:
             else:
                 self.logger.info(f"No new {rule_type_name} to create from XML: {scope_param}")
 
-        self.reorder_rules_if_needed(rule_obj, pre_rules, current_rules_pre, position='pre')
-        self.reorder_rules_if_needed(rule_obj, post_rules, current_rules_post, position='post')
+        self.reorder_rules_if_needed(rule_obj, pre_rules, current_rules_pre, limit, position='pre')
+        self.reorder_rules_if_needed(rule_obj, post_rules, current_rules_post, limit, position='post')
 
-    def reorder_rules_if_needed(self, rule_obj, desired_rules, current_rules, position):
-        if not self.is_rule_order_correct(current_rules, desired_rules):
+    def reorder_rules_if_needed(self, rule_obj, desired_rules, current_rules, limit, position):
+        if not self.is_rule_order_correct(current_rules, desired_rules, limit):
             self.configure.check_and_reorder_rules(rule_obj, self.scope_param, desired_rules, limit='10000', position=position)
 
     @staticmethod
-    def is_rule_order_correct(current_rules, desired_rules):
+    def is_rule_order_correct(current_rules, desired_rules, limit):
         current_rule_names = [rule['name'] for rule in current_rules]
         desired_rule_names = [rule['name'] for rule in desired_rules]
         return current_rule_names == desired_rule_names

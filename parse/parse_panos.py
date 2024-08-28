@@ -1057,7 +1057,7 @@ class XMLParser:
                         recurring_detail['at'] = '00'  # Default to '00' if 'at' is missing
 
                 elif recurring_type == 'weekly':
-                    day_elements = child.findall('day_of_week')
+                    day_elements = child.findall('day-of-week')
                     days = [day.text for day in day_elements]
                     recurring_detail['day_of_week'] = days
                     if at_element is not None:
@@ -1066,7 +1066,7 @@ class XMLParser:
                         recurring_detail['at'] = '00'  # Default to '00' if 'at' is missing
 
                 elif recurring_type == 'monthly':
-                    day_of_month_element = child.find('day_of_month')
+                    day_of_month_element = child.find('day-of-month')
                     if day_of_month_element is not None:
                         recurring_detail['day_of_month'] = int(day_of_month_element.text)
                     if at_element is not None:

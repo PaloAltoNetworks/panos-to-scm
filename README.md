@@ -1,3 +1,17 @@
+## 📢 End of Life Announcement for PANOS-TO-SCM Script
+
+**Effective Date:** August 31, 2024
+
+The **PANOS-TO-SCM** script is being officially deprecated and will no longer be maintained or supported after August 31, 2024. Following this date, this repository will be archived and made available in a read-only state. No further updates, bug fixes, or security patches will be provided. 
+
+### What This Means for Users
+
+- **No Support or Updates:** After the EOL date, the script will not receive any further updates, including bug fixes, enhancements, or security patches.
+- **Read-Only Access:** The repository will remain accessible for reference purposes, but users are strongly advised against deploying it in production environments. Without ongoing maintenance, potential security vulnerabilities could emerge over time.
+- **Alternative Access for Palo Alto Networks Employees and Contractors:** A supported version of this tool will continue to be available internally for Palo Alto Networks employees and contractors. You can access it at [Palo Alto Networks Spring Portal](https://spring.paloaltonetworks.com/echickerin/scm_migrator).
+
+Thank you for your understanding and cooperation.
+
 ## panos-to-scm
 - **Migrate Panorama Device Group OR Local PANOS Firewall config into Strata Cloud Manager NGFW**
 - **Migrate Cisco ASA/Firepower running config into Strata Cloud Manager - In progress**
